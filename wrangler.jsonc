@@ -1,0 +1,18 @@
+{
+  // The Worker's name must match the one in the Cloudflare dashboard.
+  "name": "dawn-baton",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "public", "run_worker_first": ["/api/*"] },
+  "d1_databases": [
+    // create with: npx wrangler d1 create baton-db   (then paste its id here)
+    { "binding": "DB", "database_name": "baton-db", "database_id": "REPLACE_WITH_D1_ID" }
+  ],
+  "vars": {
+    // When lap 1 starts: the date-line band's 06:00 solar sunrise, i.e. 18:00 UTC the day before.
+    "LAUNCH_START": "2026-10-17T18:00:00Z",
+    // "1" = bands nobody holds get a bot's stamp; anything else = they seal as "unheld" gaps
+    "BOTS": "1"
+  }
+  // Secret (not in this file): BOT_SECRET, makes the bots' choices. npx wrangler secret put BOT_SECRET
+}

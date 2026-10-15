@@ -31,6 +31,7 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
+<footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
 </main>
 <div id="adm" hidden></div>
 <script>
@@ -89,6 +90,7 @@ const words = (st) => ({
 });
 
 function catchScreen(d) {
+  if (d.version) $("#ver").textContent = "Dawn Baton v" + d.version;
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }

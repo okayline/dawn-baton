@@ -15,6 +15,7 @@
 //   POST /api/logout         this browser forgets its player (needs a save code or passkey first)
 
 import * as B from "../engine/baton.js";
+import { VERSION } from "../engine/version.js";
 import { seal, lapRecord, stampRecord, gapRecord, sha256, verifyChain, GENESIS } from "./ledger.js";
 import { skyFor, coarsePlace } from "./weather.js";
 import { sunReport } from "../engine/sun.js";
@@ -149,7 +150,7 @@ async function today(ctx) {
   const me = await player(ctx);
   const { launch, t } = ctx;
   const place = coarsePlace(ctx.env, ctx.req);
-  const out = { now: t, launch, lap: B.currentLap(launch, t), band: null, window: null, stamped: false, prev: null, sky: null,
+  const out = { version: VERSION, now: t, launch, lap: B.currentLap(launch, t), band: null, window: null, stamped: false, prev: null, sky: null,
     palette: B.COLORS, notes: B.NOTES, lists: B.LISTS, sun: null, lastClosedLap: B.lastClosedLap(launch, t) };
   if (place) out.sun = sunReport(place.lat, place.lon, t);
   if (!me || me.band == null) return out;

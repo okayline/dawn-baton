@@ -308,3 +308,13 @@ test("names show on a finished lap's stamps unless the player turns signing off;
   await b("/api/name", { signs: true });
   assert.equal((await a("/api/lap")).data.stamps.find((s) => s.band === 11).name, "Early Sparrow");
 });
+
+// ---------- version ----------
+
+test("today reports the version, and CHANGELOG.md's newest entry is that version", async () => {
+  const { VERSION } = await import("../engine/version.js");
+  const d = (await browser(makeEnv())("/api/today")).data;
+  assert.equal(d.version, VERSION);
+  const log = readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
+  assert.equal(/^## v(\S+)/m.exec(log)[1], VERSION);
+});

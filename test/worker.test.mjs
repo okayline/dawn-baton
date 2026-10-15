@@ -256,3 +256,50 @@ test("only an admin player is marked admin", async () => {
   assert.equal((await me("/api/account")).data.admin, true);
   assert.equal((await other("/api/account")).data.admin, false);
 });
+
+// ---------- names ----------
+
+test("a player picks two words, and the account says who they are", async () => {
+  const env = makeEnv(); const me = browser(env);
+  assert.equal((await me("/api/account")).data.name, null);
+  const r = await me("/api/name", { a: "adj:0", b: "noun:0" });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.data.name.text, r.data.name.tag], ["Quiet Heron", 0]);
+  assert.ok(r.data.names.adj.length >= 40 && r.data.names.noun.length >= 40);
+  assert.equal((await me("/api/name", { a: "adj:3", b: "noun:9" })).data.name.text, "Gentle Fern");
+});
+
+test("only one adjective and one noun from the lists are accepted", async () => {
+  const env = makeEnv(); const me = browser(env);
+  for (const bad of [{ a: "noun:0", b: "adj:0" }, { a: "adj:999", b: "noun:0" }, { a: "adj:0", b: "noun:0; DROP" }, { a: "Quiet", b: "Heron" }, { a: "adj:0" }, { a: "codex:sun", b: "noun:1" }])
+    assert.equal((await me("/api/name", bad)).status, 400, JSON.stringify(bad));
+});
+
+test("two players with the same pair get numbered, and keep their number when they re-save", async () => {
+  const env = makeEnv(); const a = browser(env), b = browser(env), c = browser(env);
+  assert.equal((await a("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron");
+  assert.equal((await b("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 2");
+  assert.equal((await c("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 3");
+  assert.equal((await b("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 2");
+  await a("/api/name", { a: "adj:1", b: "noun:1" });                          // a leaves the pair
+  assert.equal((await browser(env)("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 4");
+});
+
+test("names show on a finished lap's stamps unless the player turns signing off; the ledger never holds a name", async () => {
+  const env = makeEnv(); const a = browser(env), b = browser(env);
+  await a("/api/band", { offset: 0 }); await b("/api/band", { offset: 1 });
+  await a("/api/name", { a: "adj:7", b: "noun:7" });
+  await b("/api/name", { a: "adj:2", b: "noun:2", signs: false });
+  at(11.5); await b("/api/stamp", { color: 1 });
+  at(12.5); await a("/api/stamp", { color: 2 });
+  at(30);
+  const lap = (await a("/api/lap")).data;
+  assert.equal(lap.stamps.find((s) => s.band === 12).name, "Misty Wren");
+  assert.equal(lap.stamps.find((s) => s.band === 11).name, null);             // signing off
+  assert.equal(lap.stamps.find((s) => s.band === 5).name, null);              // nobody held it
+  const rows = env.DB.raw.prepare("SELECT record FROM ledger").all().map((r) => r.record).join("");
+  assert.ok(!/Misty|Wren|adj:|noun:/.test(rows));
+  // turning signing back on is picked up the next time the lap is read
+  await b("/api/name", { signs: true });
+  assert.equal((await a("/api/lap")).data.stamps.find((s) => s.band === 11).name, "Early Sparrow");
+});

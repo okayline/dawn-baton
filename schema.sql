@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS players (
   token_hash  TEXT NOT NULL UNIQUE,
   band        INTEGER,
   admin       INTEGER NOT NULL DEFAULT 0,   -- 1 = can use the admin preview (X key); set by hand in the database
+  name_a      TEXT,                         -- "adj:3": a name is two words from lists (see engine/baton.js)
+  name_b      TEXT,                         -- "noun:7"
+  name_tag    INTEGER NOT NULL DEFAULT 0,   -- 0 = first with this pair, 1 = "... 2"
+  signs       INTEGER NOT NULL DEFAULT 1,   -- 1 = show my name on my stamps (once the lap is over)
   created_at  INTEGER NOT NULL,
   seen_at     INTEGER NOT NULL
 );
@@ -80,3 +84,5 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count         INTEGER NOT NULL,
   PRIMARY KEY (key, window_start)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS players_name ON players (name_a, name_b, name_tag) WHERE name_a IS NOT NULL;

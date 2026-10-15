@@ -41,7 +41,7 @@ const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 let palette = [], lists = { phrase: [], feeling: [], gesture: [], signoff: [] };
-let pick = {}, isAdmin = false, PV = null, newCode = null;
+let pick = {}, isAdmin = false, PV = null, newCode = null, NAMES = { adj: [], noun: [] };
 
 // In preview mode nothing is sent: writes are refused on the spot, and screens read made-up data.
 const api = async (p, body) => {
@@ -132,7 +132,7 @@ function tone(note) {
 // ---------- yesterday ----------
 function strand(st, me) {
   const t = words(st);
-  return `<div class="strand${me ? " me" : ""}"><div class="r" style="justify-content:space-between"><span class="m">${esc(st.label)}${st.bot ? " · bot" : ""}${me ? " · you" : ""}</span><span class="m">${SKY[st.sky] || ""}</span></div>
+  return `<div class="strand${me ? " me" : ""}"><div class="r" style="justify-content:space-between"><span class="m">${esc(st.label)}${st.name ? " · " + esc(st.name) : ""}${st.bot ? " · bot" : ""}${me ? " · you" : ""}</span><span class="m">${SKY[st.sky] || ""}</span></div>
     ${t.line ? `<div>&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">(no phrase)</div>`}
     <div class="r" style="margin-top:3px"><span class="sw" style="cursor:default;width:44px;height:16px;background:${hsl(palette[st.color])}"></span>${st.note ? `<span class="chip">${cap(st.note)}</span>` : ""}<span class="m">${esc(t.extra.join(" · "))}</span></div></div>`;
 }
@@ -172,6 +172,13 @@ function accountScreen(a) {
   const el = $("#account"), has = a.codes.length || a.passkeys.length;
   el.innerHTML = `<div class="p"><p class="h">Your player</p>
     <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
+    <div class="p"><p class="h">Your name</p>
+      <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
+      <div class="r"><select id="na">${(a.names.adj || []).map((w, i) => `<option value="adj:${i}" ${a.name && a.name.a === "adj:" + i ? "selected" : ""}>${esc(w)}</option>`).join("")}</select>
+        <select id="nb">${(a.names.noun || []).map((w, i) => `<option value="noun:${i}" ${a.name && a.name.b === "noun:" + i ? "selected" : ""}>${esc(w)}</option>`).join("")}</select>
+        <button id="nshuffle">Shuffle</button><button id="nsave">Save name</button></div>
+      <label class="m" style="display:block;margin-top:8px"><input type="checkbox" id="nsigns" ${a.signs !== false ? "checked" : ""}> Show my name on my stamps (only after the lap is over)</label>
+      <div class="m" style="margin-top:4px">Two words, from lists. More words will unlock as you collect them.</div></div>
     ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div><div style="margin-top:8px"><button id="dlcode">Download as a text file</button></div></div>` : ""}
     <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p><div class="m" style="margin-bottom:6px">A code you write down or keep in a file. It works on any browser.</div>
       ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
@@ -186,6 +193,10 @@ function accountScreen(a) {
     <div class="m" id="amsg"></div>`;
   const say = (t) => { $("#amsg").textContent = t; };
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
+  const sel = (id) => $("#" + id), pickRand = (id) => { const o = sel(id).options; sel(id).selectedIndex = Math.floor(Math.random() * o.length); };
+  sel("nshuffle").onclick = () => { pickRand("na"); pickRand("nb"); };
+  sel("nsave").onclick = async () => { const r = await api("name", { a: sel("na").value, b: sel("nb").value, signs: sel("nsigns").checked }); if (r.error) return say(r.error); load("account"); };
+  sel("nsigns").onchange = async () => { const r = await api("name", { signs: sel("nsigns").checked }); if (r.error) say(r.error); };
   const dl = $("#dlcode"); if (dl) dl.onclick = () => {
     const text = `Dawn Baton save code\n\n${newCode}\n\nGo to ${location.origin}, open the Account tab, and paste this code under "Log in on this device" to play as your player on any browser.\nKeep this file private: anyone with the code can log in as you.\n`;
     const a = document.createElement("a");
@@ -257,7 +268,7 @@ function fixture(which, scn) {
       const bot = i % 4 === 1;
       stamps.push({ band: i, label: bandInfo(i).label, kind: "stamp", bot, color: rnd(12), note: rnd(9) ? ["resolve", "tension"][rnd(2)] : null,
         phrase: rnd(4) ? rnd(lists.phrase.length || 1) : null, feeling: rnd(3) ? rnd(lists.feeling.length || 1) : null, gesture: rnd(3) ? rnd(lists.gesture.length || 1) : null,
-        signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, sky: ["clear", "cloud", "rain", "fog", "snow"][rnd(5)], mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
+        signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: ["clear", "cloud", "rain", "fog", "snow"][rnd(5)], mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }
     const items = stamps, st = items.filter((x) => x.kind === "stamp");
     return { lap: 117, held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
@@ -272,9 +283,10 @@ function fixture(which, scn) {
   }
   if (which === "account") {
     const t = Math.floor(Date.now() / 1000);
-    if (scn === "fresh") { newCode = null; return { player: false, admin: true, codes: [], passkeys: [], devices: 0 }; }
+    if (scn === "fresh") { newCode = null; return { player: false, admin: true, codes: [], passkeys: [], devices: 0, name: null, names: NAMES, signs: true }; }
     if (scn === "justmade") newCode = "K7QM-2XPA-9RTD-HV4C-8NBE"; else newCode = null;
-    return { player: true, admin: true, codes: [{ id: 1, created_at: t - 86400 * 3, last_used_at: t - 3600 }], passkeys: [{ id: 1, label: "Windows PC", created_at: t - 86400 * 3, last_used_at: null }], devices: 2 };
+    const nm = { a: "adj:0", b: "noun:0", tag: 1, text: `${NAMES.adj[0] || "Quiet"} ${NAMES.noun[0] || "Heron"} 2` };
+    return { player: true, admin: true, name: nm, names: NAMES, signs: true, codes: [{ id: 1, created_at: t - 86400 * 3, last_used_at: t - 3600 }], passkeys: [{ id: 1, label: "Windows PC", created_at: t - 86400 * 3, last_used_at: null }], devices: 2 };
   }
 }
 
@@ -295,5 +307,5 @@ document.addEventListener("keydown", (e) => {
 });
 
 load("catch");
-fetch("/api/account").then((r) => r.json()).then((a) => { isAdmin = !!a.admin; }).catch(() => {});
+fetch("/api/account").then((r) => r.json()).then((a) => { isAdmin = !!a.admin; if (a.names) NAMES = a.names; }).catch(() => {});
 </script></body></html>

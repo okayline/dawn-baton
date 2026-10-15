@@ -11,6 +11,7 @@
 //   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
 //   POST /api/load {code}    become the player a save code belongs to on this device (log in)
 //   POST /api/passkey {action: register_options | register | login_options | login | remove}
+//   POST /api/name {a, b, signs}   pick your two-word name (ids like "adj:3", "noun:7") and whether stamps show it
 //   POST /api/logout         this browser forgets its player (needs a save code or passkey first)
 
 import * as B from "../engine/baton.js";
@@ -33,7 +34,7 @@ const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
   "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
   "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
-  "POST /api/passkey": passkey, "POST /api/logout": logout,
+  "POST /api/passkey": passkey, "POST /api/name": setName, "POST /api/logout": logout,
 };
 
 export default {
@@ -217,6 +218,13 @@ async function lapView(ctx) {
   if (!Number.isInteger(n) || n < 1 || n > last) throw new Oops("That lap hasn't finished yet.", 404);
   const rows = await stampsOf(ctx, n);
   const items = rows.map((r) => view(r, me && me.id));
+  // names are looked up now, not sealed: the ledger only ever holds player ids
+  const ids = [...new Set(rows.filter((r) => r.kind === "stamp" && r.player != null).map((r) => r.player))];
+  if (ids.length) {
+    const people = (await ctx.db.prepare(`SELECT id, name_a, name_b, name_tag, signs FROM players WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
+    const byId = new Map(people.map((p) => [p.id, p]));
+    rows.forEach((r, i) => { const p = byId.get(r.player); items[i].name = p && p.signs && p.name_a ? B.nameText(p.name_a, p.name_b, p.name_tag) : null; });
+  }
   const stamps = items.filter((r) => r.kind === "stamp");
   return {
     lap: n, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
@@ -250,14 +258,39 @@ async function ledger(ctx) {
 const must = async (ctx, create = false) => { const p = await player(ctx, create); if (!p) throw new Oops("No player here.", 401); return p; };
 const body = async (ctx) => { try { return await ctx.req.json(); } catch { throw new Oops("That request didn't make sense."); } };
 
-async function account(ctx) {
-  const me = await player(ctx);
-  if (!me) return { player: false, admin: false, codes: [], passkeys: [], devices: 0 };
+async function account(ctx, known = null) {
+  const me = known || await player(ctx);
+  const names = B.NAME_LISTS;
+  if (!me) return { player: false, admin: false, codes: [], passkeys: [], devices: 0, name: null, names };
   const { db } = ctx;
   const codes = (await db.prepare("SELECT id, created_at, last_used_at FROM save_codes WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const passkeys = (await db.prepare("SELECT id, label, created_at, last_used_at FROM passkeys WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
-  return { player: true, admin: !!me.admin, codes, passkeys, devices };
+  return { player: true, admin: !!me.admin, codes, passkeys, devices, names, signs: !!me.signs,
+    name: me.name_a ? { a: me.name_a, b: me.name_b, tag: me.name_tag, text: B.nameText(me.name_a, me.name_b, me.name_tag) } : null };
+}
+
+// Pick two words. If someone already has the pair, you get the next number ("Quiet Heron 2").
+async function setName(ctx) {
+  const b = await body(ctx), { db } = ctx;
+  const me = await player(ctx, true);
+  if (b.a != null || b.b != null) {
+    if (!B.checkName(b.a, b.b)) throw new Oops("Pick one word from each list.");
+    if (me.name_a === b.a && me.name_b === b.b) { /* same pair: keep your number */ }
+    else {
+      let ok = false;
+      for (let i = 0; i < 6 && !ok; i++) {
+        const top = await db.prepare("SELECT MAX(name_tag) AS m FROM players WHERE name_a = ? AND name_b = ? AND id != ?").bind(b.a, b.b, me.id).first();
+        const tag = top && top.m != null ? top.m + 1 : 0;
+        try { await db.prepare("UPDATE players SET name_a = ?, name_b = ?, name_tag = ? WHERE id = ?").bind(b.a, b.b, tag, me.id).run(); ok = true; }
+        catch (e) { if (!/UNIQUE/i.test(String(e && e.message))) throw e; }   // someone took that number a moment ago: try the next
+      }
+      if (!ok) throw new Oops("That name is busy. Try again.");
+    }
+  }
+  if (b.signs != null) await db.prepare("UPDATE players SET signs = ? WHERE id = ?").bind(b.signs ? 1 : 0, me.id).run();
+  // built from the row, not the cookie: a brand-new player doesn't have their cookie yet on this request
+  return account(ctx, await db.prepare("SELECT * FROM players WHERE id = ?").bind(me.id).first());
 }
 
 async function codes(ctx) {

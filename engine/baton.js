@@ -119,3 +119,34 @@ export function checkStamp(body) {
   }
   return out;
 }
+
+// ---------- player names: two words from lists ----------
+// A name is two word ids ("adj:3", "noun:7") and a tag (0 = first holder of that pair, 1 = "... 2", and so on).
+// Ids point into these lists, so append new words to the END. Later, words from a player's codex can be
+// accepted here too (an id like "codex:<word>"); the ledger never holds names, only player ids.
+export const NAME_ADJECTIVES = [
+  "Quiet", "Amber", "Early", "Gentle", "Bright", "Sleepy", "Golden", "Misty", "Rosy", "Brisk",
+  "Hushed", "Warm", "Pale", "Slow", "Steady", "Wandering", "Soft", "Silver", "Crisp", "Drowsy",
+  "Humble", "Eager", "Lucky", "Patient", "Little", "Cheerful", "Faint", "Glowing", "Distant", "Tender",
+  "Rested", "Windy", "Dewy", "Calm", "Merry", "Shy", "Nimble", "Sunny", "Mellow", "Dappled",
+];
+export const NAME_NOUNS = [
+  "Heron", "Lantern", "Sparrow", "Kettle", "Meadow", "Thistle", "Harbor", "Wren", "Compass", "Fern",
+  "Moth", "Orchard", "Ferry", "Pebble", "Robin", "Willow", "Teapot", "Comet", "Lark", "Cedar",
+  "Beacon", "Marmot", "Otter", "Clover", "Ember", "Finch", "Tide", "Bramble", "Lamp", "Poppy",
+  "Swallow", "Sundial", "Quill", "Hedgehog", "Trellis", "Rooster", "Weathervane", "Kingfisher", "Pigeon", "Lighthouse",
+];
+export const NAME_LISTS = { adj: NAME_ADJECTIVES, noun: NAME_NOUNS };
+
+// "adj:3" -> "Gentle", or null if it isn't a word we know.
+export function nameWord(id) {
+  const m = /^(adj|noun):(\d{1,3})$/.exec(String(id || ""));
+  const w = m && NAME_LISTS[m[1]][Number(m[2])];
+  return w || null;
+}
+export function nameText(a, b, tag = 0) {
+  const x = nameWord(a), y = nameWord(b);
+  return x && y ? `${x} ${y}${tag > 0 ? " " + (tag + 1) : ""}` : null;
+}
+// First word must be an adjective and the second a noun for now (so every name reads well).
+export const checkName = (a, b) => nameWord(a) && nameWord(b) && /^adj:/.test(a) && /^noun:/.test(b);

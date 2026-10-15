@@ -83,22 +83,27 @@ export function skyFromWmo(code) {
 // Picked-from-list slots. A stamp stores the index, never the text, so the same stamp can be shown in any
 // language later. Append new entries to the END of a list (indices are sealed in the ledger forever).
 export const PHRASES = [
-  "I heard you.", "Same here.", "Not here, though.", "Morning already?", "Passing it on.", "Here's the rest of it.",
-  "That made me smile.", "Hard to say.", "Quietly, yes.", "Carry on.", "I'll hold it gently.", "Still dark here, almost.",
-  "Louder, please.", "Slowly now.", "Warm hands.", "Noted.", "Onward.", "I'd have said the opposite.",
-  "Thank you for the light.", "I'll keep it short.",
+  "Heard you.", "Same, honestly.", "Not over here, no.", "It's morning already??",
+  "Handing it off.", "Here's the rest.", "Okay that made me smile.", "Ehh, hard to say.",
+  "Yes, but quietly.", "Keep going, legend.", "I'll be gentle with it.", "Still basically dark here.",
+  "Louder pls.", "Slow it down.", "Warm hands, friend.", "Noted. Filing it.",
+  "Onwards!!", "Bold. I'd say the opposite.", "Thanks for the light.", "Keeping it short.",
 ];
 export const FEELINGS = [
-  "sleepy", "hopeful", "restless", "calm", "curious", "tender", "grumpy",
-  "bright", "wistful", "steady", "giddy", "tired", "grateful", "uneasy",
+  "sleepy", "hopeful", "restless", "calm",
+  "curious", "soft", "cranky", "sparkly",
+  "misty", "solid", "giddy", "fried",
+  "thankful", "a bit off",
 ];
 export const GESTURES = [
-  "waves", "bows", "yawns", "stretches", "nods", "tips a cap",
-  "lights a lamp", "opens a window", "holds a cup", "shades their eyes", "hums", "whistles",
+  "waves", "bows dramatically", "yawns loudly", "stretches, finally",
+  "nods, mostly awake", "tips a cap", "lights a lamp", "opens a window",
+  "clutches a coffee", "squints at the sun", "hums", "whistles",
 ];
 export const SIGNOFFS = [
-  "See you at dawn.", "Don't drop it.", "West we go.", "Rest well.", "Pass it on.",
-  "Keep the light.", "Until tomorrow.", "Mind the dark.", "Good morning.", "Over to you.",
+  "See you at sunrise!", "Don't fumble it.", "West we go!", "Go rest.",
+  "Pass it along.", "Keep the glow.", "Same time tomorrow.", "Watch the dark.",
+  "Morning, you.", "Tag, you're it.",
 ];
 export const LISTS = { phrase: PHRASES, feeling: FEELINGS, gesture: GESTURES, signoff: SIGNOFFS };
 

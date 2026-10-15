@@ -195,7 +195,12 @@ function accountScreen(a) {
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
   const sel = (id) => $("#" + id), pickRand = (id) => { const o = sel(id).options; sel(id).selectedIndex = Math.floor(Math.random() * o.length); };
   sel("nshuffle").onclick = () => { pickRand("na"); pickRand("nb"); };
-  sel("nsave").onclick = async () => { const r = await api("name", { a: sel("na").value, b: sel("nb").value, signs: sel("nsigns").checked }); if (r.error) return say(r.error); load("account"); };
+  sel("nsave").onclick = async () => {
+    const r = await api("name", { a: sel("na").value, b: sel("nb").value, signs: sel("nsigns").checked });
+    if (r.suggestion) { sel("na").value = r.suggestion.a; sel("nb").value = r.suggestion.b; return say("That name is taken. We picked another: press Save name if you like it, or Shuffle."); }
+    if (r.error) return say(r.error);
+    load("account");
+  };
   sel("nsigns").onchange = async () => { const r = await api("name", { signs: sel("nsigns").checked }); if (r.error) say(r.error); };
   const dl = $("#dlcode"); if (dl) dl.onclick = () => {
     const text = `Dawn Baton save code\n\n${newCode}\n\nGo to ${location.origin}, open the Account tab, and paste this code under "Log in on this device" to play as your player on any browser.\nKeep this file private: anyone with the code can log in as you.\n`;
@@ -285,7 +290,7 @@ function fixture(which, scn) {
     const t = Math.floor(Date.now() / 1000);
     if (scn === "fresh") { newCode = null; return { player: false, admin: true, codes: [], passkeys: [], devices: 0, name: null, names: NAMES, signs: true }; }
     if (scn === "justmade") newCode = "K7QM-2XPA-9RTD-HV4C-8NBE"; else newCode = null;
-    const nm = { a: "adj:0", b: "noun:0", tag: 1, text: `${NAMES.adj[0] || "Quiet"} ${NAMES.noun[0] || "Heron"} 2` };
+    const nm = { a: "adj:0", b: "noun:0", text: `${NAMES.adj[0] || "Quiet"} ${NAMES.noun[0] || "Heron"}` };
     return { player: true, admin: true, name: nm, names: NAMES, signs: true, codes: [{ id: 1, created_at: t - 86400 * 3, last_used_at: t - 3600 }], passkeys: [{ id: 1, label: "Windows PC", created_at: t - 86400 * 3, last_used_at: null }], devices: 2 };
   }
 }

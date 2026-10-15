@@ -24,7 +24,7 @@ import { registerOptions, verifyRegistration, loginOptions, verifyLogin } from "
 const COOKIE = "bb";
 const COOKIE_MAX_AGE = 400 * 86400;
 
-class Oops extends Error { constructor(m, status = 400) { super(m); this.status = status; } }
+class Oops extends Error { constructor(m, status = 400) { super(m); this.status = status; } }   // .extra: more fields for the reply
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
@@ -54,7 +54,7 @@ export default {
       const res = await route(ctx);
       return ctx.setCookie ? json(res.data ?? res, 200, { "set-cookie": ctx.setCookie }) : json(res.data ?? res);
     } catch (e) {
-      if (e instanceof Oops) return json({ error: e.message }, e.status);
+      if (e instanceof Oops) return json({ error: e.message, ...(e.extra || {}) }, e.status);
       console.error(e);
       return json({ error: "Something broke. Try again in a moment." }, 500);
     }
@@ -223,7 +223,7 @@ async function lapView(ctx) {
   if (ids.length) {
     const people = (await ctx.db.prepare(`SELECT id, name_a, name_b, name_tag, signs FROM players WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
     const byId = new Map(people.map((p) => [p.id, p]));
-    rows.forEach((r, i) => { const p = byId.get(r.player); items[i].name = p && p.signs && p.name_a ? B.nameText(p.name_a, p.name_b, p.name_tag) : null; });
+    rows.forEach((r, i) => { const p = byId.get(r.player); items[i].name = p && p.signs && p.name_a ? B.nameText(p.name_a, p.name_b) : null; });
   }
   const stamps = items.filter((r) => r.kind === "stamp");
   return {
@@ -267,30 +267,37 @@ async function account(ctx, known = null) {
   const passkeys = (await db.prepare("SELECT id, label, created_at, last_used_at FROM passkeys WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
   return { player: true, admin: !!me.admin, codes, passkeys, devices, names, signs: !!me.signs,
-    name: me.name_a ? { a: me.name_a, b: me.name_b, tag: me.name_tag, text: B.nameText(me.name_a, me.name_b, me.name_tag) } : null };
+    name: me.name_a ? { a: me.name_a, b: me.name_b, text: B.nameText(me.name_a, me.name_b) } : null };
 }
 
-// Pick two words. If someone already has the pair, you get the next number ("Quiet Heron 2").
+// Pick two words. Names are unique: if the pair is taken, nothing is saved and you get a free pair to try.
 async function setName(ctx) {
   const b = await body(ctx), { db } = ctx;
   const me = await player(ctx, true);
   if (b.a != null || b.b != null) {
     if (!B.checkName(b.a, b.b)) throw new Oops("Pick one word from each list.");
-    if (me.name_a === b.a && me.name_b === b.b) { /* same pair: keep your number */ }
-    else {
-      let ok = false;
-      for (let i = 0; i < 6 && !ok; i++) {
-        const top = await db.prepare("SELECT MAX(name_tag) AS m FROM players WHERE name_a = ? AND name_b = ? AND id != ?").bind(b.a, b.b, me.id).first();
-        const tag = top && top.m != null ? top.m + 1 : 0;
-        try { await db.prepare("UPDATE players SET name_a = ?, name_b = ?, name_tag = ? WHERE id = ?").bind(b.a, b.b, tag, me.id).run(); ok = true; }
-        catch (e) { if (!/UNIQUE/i.test(String(e && e.message))) throw e; }   // someone took that number a moment ago: try the next
+    if (!(me.name_a === b.a && me.name_b === b.b)) {
+      try { await db.prepare("UPDATE players SET name_a = ?, name_b = ? WHERE id = ?").bind(b.a, b.b, me.id).run(); }
+      catch (e) {
+        if (!/UNIQUE/i.test(String(e && e.message))) throw e;
+        const res = new Oops("That name is taken. Here's another.", 409);
+        res.extra = { suggestion: await freeName(db) };
+        throw res;
       }
-      if (!ok) throw new Oops("That name is busy. Try again.");
     }
   }
   if (b.signs != null) await db.prepare("UPDATE players SET signs = ? WHERE id = ?").bind(b.signs ? 1 : 0, me.id).run();
   // built from the row, not the cookie: a brand-new player doesn't have their cookie yet on this request
   return account(ctx, await db.prepare("SELECT * FROM players WHERE id = ?").bind(me.id).first());
+}
+
+// A random pair nobody has (tries a handful of times, which is plenty until the lists are nearly full).
+async function freeName(db) {
+  for (let i = 0; i < 30; i++) {
+    const a = "adj:" + Math.floor(Math.random() * B.NAME_ADJECTIVES.length), n = "noun:" + Math.floor(Math.random() * B.NAME_NOUNS.length);
+    if (!(await db.prepare("SELECT 1 FROM players WHERE name_a = ? AND name_b = ?").bind(a, n).first())) return { a, b: n };
+  }
+  return null;
 }
 
 async function codes(ctx) {

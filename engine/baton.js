@@ -121,7 +121,7 @@ export function checkStamp(body) {
 }
 
 // ---------- player names: two words from lists ----------
-// A name is two word ids ("adj:3", "noun:7") and a tag (0 = first holder of that pair, 1 = "... 2", and so on).
+// A name is two word ids ("adj:3", "noun:7"). Names are unique: a taken pair is rerolled, never numbered.
 // Ids point into these lists, so append new words to the END. Later, words from a player's codex can be
 // accepted here too (an id like "codex:<word>"); the ledger never holds names, only player ids.
 export const NAME_ADJECTIVES = [
@@ -144,9 +144,9 @@ export function nameWord(id) {
   const w = m && NAME_LISTS[m[1]][Number(m[2])];
   return w || null;
 }
-export function nameText(a, b, tag = 0) {
+export function nameText(a, b) {
   const x = nameWord(a), y = nameWord(b);
-  return x && y ? `${x} ${y}${tag > 0 ? " " + (tag + 1) : ""}` : null;
+  return x && y ? `${x} ${y}` : null;
 }
 // First word must be an adjective and the second a noun for now (so every name reads well).
 export const checkName = (a, b) => nameWord(a) && nameWord(b) && /^adj:/.test(a) && /^noun:/.test(b);

@@ -264,7 +264,7 @@ test("a player picks two words, and the account says who they are", async () => 
   assert.equal((await me("/api/account")).data.name, null);
   const r = await me("/api/name", { a: "adj:0", b: "noun:0" });
   assert.equal(r.status, 200);
-  assert.deepEqual([r.data.name.text, r.data.name.tag], ["Quiet Heron", 0]);
+  assert.equal(r.data.name.text, "Quiet Heron");
   assert.ok(r.data.names.adj.length >= 40 && r.data.names.noun.length >= 40);
   assert.equal((await me("/api/name", { a: "adj:3", b: "noun:9" })).data.name.text, "Gentle Fern");
 });
@@ -275,14 +275,19 @@ test("only one adjective and one noun from the lists are accepted", async () => 
     assert.equal((await me("/api/name", bad)).status, 400, JSON.stringify(bad));
 });
 
-test("two players with the same pair get numbered, and keep their number when they re-save", async () => {
-  const env = makeEnv(); const a = browser(env), b = browser(env), c = browser(env);
+test("a taken name is refused with a free one to try, never numbered", async () => {
+  const env = makeEnv(); const a = browser(env), b = browser(env);
   assert.equal((await a("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron");
-  assert.equal((await b("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 2");
-  assert.equal((await c("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 3");
-  assert.equal((await b("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 2");
-  await a("/api/name", { a: "adj:1", b: "noun:1" });                          // a leaves the pair
-  assert.equal((await browser(env)("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron 4");
+  const clash = await b("/api/name", { a: "adj:0", b: "noun:0" });
+  assert.equal(clash.status, 409);
+  assert.ok(clash.data.suggestion && !(clash.data.suggestion.a === "adj:0" && clash.data.suggestion.b === "noun:0"));
+  assert.equal((await b("/api/account")).data.name, null);                          // nothing was saved
+  const ok = await b("/api/name", clash.data.suggestion);
+  assert.equal(ok.status, 200);
+  assert.ok(!/\d/.test(ok.data.name.text));
+  assert.equal((await a("/api/name", { a: "adj:0", b: "noun:0" })).status, 200);    // re-saving your own pair is fine
+  await a("/api/name", { a: "adj:1", b: "noun:1" });                                // leaving a pair frees it
+  assert.equal((await browser(env)("/api/name", { a: "adj:0", b: "noun:0" })).data.name.text, "Quiet Heron");
 });
 
 test("names show on a finished lap's stamps unless the player turns signing off; the ledger never holds a name", async () => {

@@ -173,13 +173,13 @@ const nextWindow = (n) => {
   const day = d.toDateString() === today.toDateString() ? "today" : d.toDateString() === tomorrow.toDateString() ? "tomorrow" : d.toLocaleDateString([], { weekday: "long" });
   return `Your next window is ${day} at ${hm(n.opensAt)}.`;
 };
-// Note symbols: a smooth wave for resolve, a jagged line for tension, a hollow ring for silence.
+// Note symbols: a music note for resolve, a flat sign for tension, a dash for silence (an unheld band gets a dimmer dash).
 const NOTE_ICON = {
-  resolve: '<path d="M1.5 8c1.6-4.4 3.2-4.4 4.8 0s3.2 4.4 4.8 0 2.2-3 3.4-2" fill="none" stroke="#9fd0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
-  tension: '<path d="M1.5 11.5L4.7 4.5 8 11.5l3.3-7 3.2 7" fill="none" stroke="#ff9f5d" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
-  silence: '<circle cx="8" cy="8" r="3.6" fill="none" stroke="#8a8aff" stroke-width="1.4"/>',
+  resolve: '<ellipse cx="5.6" cy="12" rx="3" ry="2.2" transform="rotate(-20 5.6 12)" fill="#9fd0ff"/><path d="M8.4 11.6V2.6c.2 3.2 4.4 3.2 4.1 6.6" fill="none" stroke="#9fd0ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  tension: '<path d="M5.4 1.8v11.6" stroke="#ff9f5d" stroke-width="1.5" stroke-linecap="round"/><path d="M5.4 13.4c0-4.4 6.6-5.2 6.6-1.6 0 2.2-3.2 2.8-6.6 1.6" fill="none" stroke="#ff9f5d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  silence: '<path d="M3.5 8h9" stroke="#8a8aff" stroke-width="1.8" stroke-linecap="round"/>',
 };
-const noteIcon = (st, size = 14) => st.kind === "gap" ? `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M5.5 8h5" stroke="#3a3a9a" stroke-width="1.2"/></svg>`
+const noteIcon = (st, size = 14) => st.kind === "gap" ? `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M3.5 8h9" stroke="#4a4aa0" stroke-width="1.8" stroke-linecap="round" opacity=".7"/></svg>`
   : `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${NOTE_ICON[st.note || "silence"]}</svg>`;
 const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 const inWindow = (st) => { const m = Math.max(0, Math.round((st.t * 1000 - st.opensAt) / 60000)); return m < 1 ? "as the window opened" : `${m} min into the window`; };

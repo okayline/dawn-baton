@@ -101,9 +101,9 @@ export const GESTURES = [
   "clutches a coffee", "squints at the sun", "hums", "whistles",
 ];
 export const SIGNOFFS = [
-  "See you at sunrise!", "Don't fumble it.", "West we go!", "Go rest.",
-  "Pass it along.", "Keep the glow.", "Same time tomorrow.", "Watch the dark.",
-  "Morning, you.", "Tag, you're it.",
+  "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",
+  "zero expectations", "main character energy", "a long walk", "clean socks",
+  "questionable confidence", "a little sunshine",
 ];
 export const LISTS = { phrase: PHRASES, feeling: FEELINGS, gesture: GESTURES, signoff: SIGNOFFS };
 

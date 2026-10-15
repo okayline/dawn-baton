@@ -98,7 +98,7 @@ const ASK = {
   phrase: ["Say something back."],
   feeling: ["How are we feeling?"],
   gesture: ["What's your move as you hand it off?"],
-  signoff: ["Any last words?"],
+  signoff: ["What are you bringing today?"],
 };
 const askHead = (k, first) => { const [q] = ASK[k]; return `<div style="margin-top:4px"><b>${k === "phrase" && first ? "Start the strand." : q}</b></div>${k === "phrase" && first ? `<div class="m">You're first this lap: any line will do.</div>` : ""}`; };
 const SLOTS = [["phrase"], ["feeling"], ["gesture"], ["signoff"]];

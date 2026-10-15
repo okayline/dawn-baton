@@ -83,11 +83,11 @@ export function skyFromWmo(code) {
 // Picked-from-list slots. A stamp stores the index, never the text, so the same stamp can be shown in any
 // language later. Append new entries to the END of a list (indices are sealed in the ledger forever).
 export const PHRASES = [
-  "Heard you.", "Same, honestly.", "Not over here, no.", "It's morning already??",
-  "Handing it off.", "Here's the rest.", "Okay that made me smile.", "Ehh, hard to say.",
-  "Yes, but quietly.", "Keep going, legend.", "I'll be gentle with it.", "Still basically dark here.",
-  "Louder pls.", "Slow it down.", "Warm hands, friend.", "Noted. Filing it.",
-  "Onwards!!", "Bold. I'd say the opposite.", "Thanks for the light.", "Keeping it short.",
+  "Right back at you!", "Morning to you too!", "Hi, hi, hi!", "Same, honestly.",
+  "You made my morning.", "Okay that made me smile.", "Sending a warm wave.", "It's morning already??",
+  "Still half asleep, hi.", "Look at you go.", "Keep being you.", "Warm hands, friend.",
+  "Sunshine received.", "Big hug from over here.", "Rooting for you.", "Thanks for the light.",
+  "Let's make it a good one.", "Hope your coffee's hot.", "Onwards!!", "Keeping it short.",
 ];
 export const FEELINGS = [
   "sleepy", "hopeful", "restless", "calm",
@@ -96,9 +96,9 @@ export const FEELINGS = [
   "thankful", "a bit off",
 ];
 export const GESTURES = [
-  "waves", "bows dramatically", "yawns loudly", "stretches, finally",
-  "nods, mostly awake", "tips a cap", "lights a lamp", "opens a window",
-  "clutches a coffee", "squints at the sun", "hums", "whistles",
+  "mid-yawn", "stretching like a cat", "arguing with my alarm", "talking to my coffee",
+  "waving at the sun", "squinting at the sunrise", "humming off-key", "doing a tiny dance",
+  "staring out the window", "hunting for socks", "still in pajamas", "smiling at nothing",
 ];
 export const SIGNOFFS = [
   "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",

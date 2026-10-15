@@ -95,9 +95,9 @@ function sunLine(sun) {
 const ASK = {
   color: ["What color is your morning?"],
   note: ["Does the tune settle, or lean?"],
-  phrase: ["Say something back."],
+  phrase: ["Morning, sunshine ☀️"],
   feeling: ["Vibe check?"],
-  gesture: ["What's your move as you hand it off?"],
+  gesture: ["You caught me…"],
   signoff: ["What are you bringing today?"],
 };
 const askHead = (k, first) => { const [q] = ASK[k]; return `<div style="margin-top:4px"><b>${k === "phrase" && first ? "Start the strand." : q}</b></div>${k === "phrase" && first ? `<div class="m">You're first this lap: any line will do.</div>` : ""}`; };

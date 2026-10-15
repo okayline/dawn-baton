@@ -57,10 +57,10 @@ export function windowFor(launch, index, t) {
 // ---------- what a stamp can hold (indices only, never free text) ----------
 
 export const COLORS = [
-  { name: "ember", hsl: [8, 70, 55] }, { name: "amber", hsl: [28, 70, 55] }, { name: "straw", hsl: [48, 70, 55] },
-  { name: "moss", hsl: [95, 70, 55] }, { name: "fern", hsl: [150, 70, 55] }, { name: "teal", hsl: [175, 70, 55] },
-  { name: "sky", hsl: [200, 70, 55] }, { name: "ink", hsl: [225, 70, 55] }, { name: "violet", hsl: [260, 70, 55] },
-  { name: "magenta", hsl: [290, 70, 55] }, { name: "rose", hsl: [325, 70, 55] }, { name: "frost", hsl: [0, 0, 92] },
+  { name: "ember", hsl: [8, 62, 60] }, { name: "amber", hsl: [28, 62, 60] }, { name: "straw", hsl: [48, 62, 60] },
+  { name: "moss", hsl: [95, 62, 60] }, { name: "fern", hsl: [150, 62, 60] }, { name: "teal", hsl: [175, 62, 60] },
+  { name: "sky", hsl: [200, 62, 60] }, { name: "ink", hsl: [225, 62, 60] }, { name: "violet", hsl: [260, 62, 60] },
+  { name: "magenta", hsl: [290, 62, 60] }, { name: "rose", hsl: [325, 62, 60] }, { name: "frost", hsl: [0, 0, 92] },
 ];
 export const NOTES = ["resolve", "tension"];
 export const SKIES = ["clear", "cloud", "fog", "drizzle", "rain", "snow", "storm", "unknown"];

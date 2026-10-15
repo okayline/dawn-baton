@@ -193,7 +193,7 @@ function strand(st, me) {
       <span title="${esc(sky)}" aria-label="${esc(sky)}" style="display:flex;flex:none">${st.sky ? skyIcon(st, 30) : ""}</span></div>
     <div class="m" style="margin-top:2px">#${st.band + 1} &middot; ${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
     ${when ? `<div class="m">${when}</div>` : ""}
-    <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;background:${hsl(palette[st.color])}"></span>${[st.note ? cap(st.note) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
+    <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;${st.color != null ? `background:${hsl(palette[st.color])}` : "background:transparent;border:1px dashed #6c6cff"}"></span>${[st.note ? cap(st.note) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
 }
 function payoffScreen(l) {
   const el = $("#payoff");

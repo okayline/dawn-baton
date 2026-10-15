@@ -162,8 +162,12 @@ async function today(ctx) {
     out.stamped = !!mine;
     // the one line before yours: the nearest earlier band's stamp (skipping unheld bands)
     const before = (await stampsOf(ctx, w.lap)).filter((r) => r.kind === "stamp" && r.band < me.band).sort((a, b) => a.band - b.band);
-    // only a color and a tune: everything else the last band chose (phrase, feeling, gesture, sign-off, sky, who) stays hidden until the lap closes
-    if (before.length) { const last = before[before.length - 1]; out.prev = { color: last.color ?? null, note: last.note ?? null }; }
+    // what the last band left: the words, the colour, the sky and the notes. Who they were and exactly when stay hidden until the lap closes.
+    if (before.length) {
+      const last = before[before.length - 1];
+      out.prev = { color: last.color ?? null, note: last.note ?? null, phrase: last.phrase ?? null, feeling: last.feeling ?? null,
+        gesture: last.gesture ?? null, signoff: last.signoff ?? null, sky: last.sky ?? null };
+    }
     out.heard = before.slice(-3).map((r) => r.note ?? null);       // the last three notes before you, oldest first (null = silence)
     if (!out.stamped) out.sky = await skyFor(ctx.env, ctx.req);
   }

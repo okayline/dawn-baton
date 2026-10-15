@@ -161,10 +161,10 @@ function strand(st, me) {
   const when = st.t == null ? "" : st.bot ? `window closed ${hms(st.t * 1000)}` : `${hms(st.t * 1000)} &middot; ${inWindow(st)}`;
   const sky = SKY[st.sky] || "";
   return `<div class="strand${me ? " me" : ""}">
-    <div class="r" style="justify-content:space-between;flex-wrap:nowrap;align-items:flex-start">
-      ${t.line ? `<div style="font-size:16px">&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">(no phrase)</div>`}
+    <div class="r" style="justify-content:space-between;flex-wrap:nowrap;align-items:center;gap:8px;min-height:30px">
+      <div style="font-size:16px;line-height:1.2">${t.line ? `&ldquo;${esc(t.line)}&rdquo;` : ""}</div>
       <span title="${esc(sky)}" aria-label="${esc(sky)}" style="display:flex;flex:none">${st.sky ? skyIcon(st, 30) : ""}</span></div>
-    <div class="m">${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
+    <div class="m" style="margin-top:2px">${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
     ${when ? `<div class="m">${when}</div>` : ""}
     <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;background:${hsl(palette[st.color])}"></span>${[st.note ? cap(st.note) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
 }

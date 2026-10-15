@@ -42,7 +42,7 @@ const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 let palette = [], lists = { phrase: [], feeling: [], gesture: [], signoff: [] };
-let pick = {}, isAdmin = false, PV = null, newCode = null, NAMES = { adj: [], noun: [] };
+let pick = {}, isAdmin = false, PV = null, newCode = null, NAMES = { adj: [], noun: [] }, lapN = null, curTab = "catch";
 
 // In preview mode nothing is sent: writes are refused on the spot, and screens read made-up data.
 const api = async (p, body) => {
@@ -53,6 +53,8 @@ const api = async (p, body) => {
 
 document.querySelectorAll(".tab").forEach((b) => b.onclick = () => show(b.dataset.t));
 function show(t) {
+  if (t === "payoff" && curTab !== "payoff") lapN = null;      // coming back to Yesterday starts at the latest lap again
+  curTab = t;
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
   for (const id of ["catch", "payoff", "planet", "account"]) $("#" + id).hidden = id !== t;
   load(t);
@@ -60,7 +62,7 @@ function show(t) {
 async function load(which) {
   const fx = PV && PV.screen === which ? fixture(which, PV.scenario) : PV ? fixture(which, DEFAULT[which]) : null;
   if (which === "catch") return catchScreen(fx || await api("today"));
-  if (which === "payoff") return payoffScreen(fx || await api("lap"));
+  if (which === "payoff") return payoffScreen(fx || await api("lap" + (lapN ? "?n=" + lapN : "")));
   if (which === "planet") return planetScreen(fx || await api("planet"));
   if (which === "account") return accountScreen(fx || await api("account"));
 }
@@ -104,7 +106,7 @@ function catchScreen(d) {
     h += `<div class="p"><p class="h">From the band before you (the only line you can see)</p>`;
     if (d.prev) {
       const t = words(d.prev);
-      h += (t.line ? `<div style="font-size:16px">&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">They left no phrase.</div>`)
+      h += (t.line ? `<div style="font-size:16px">&ldquo;${esc(t.line)}&rdquo;</div>` : "")
         + (t.extra.length ? `<div class="r" style="margin-top:4px">${t.extra.map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div>` : "")
         + `<div class="r" style="margin-top:8px"><span class="sw" style="cursor:default;background:${hsl(palette[d.prev.color])}"></span><span class="m">their mood</span><span class="m">their sky: ${SKY[d.prev.sky] || "?"}</span></div>
            <div class="r" style="margin-top:8px"><button id="hear">Play last note</button><span class="m">they left: ${d.prev.note || "silence"}</span></div>`;
@@ -164,7 +166,7 @@ function strand(st, me) {
     <div class="r" style="justify-content:space-between;flex-wrap:nowrap;align-items:center;gap:8px;min-height:30px">
       <div style="font-size:16px;line-height:1.2">${t.line ? `&ldquo;${esc(t.line)}&rdquo;` : ""}</div>
       <span title="${esc(sky)}" aria-label="${esc(sky)}" style="display:flex;flex:none">${st.sky ? skyIcon(st, 30) : ""}</span></div>
-    <div class="m" style="margin-top:2px">${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
+    <div class="m" style="margin-top:2px">#${st.band + 1} &middot; ${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
     ${when ? `<div class="m">${when}</div>` : ""}
     <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;background:${hsl(palette[st.color])}"></span>${[st.note ? cap(st.note) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
 }
@@ -173,7 +175,10 @@ function payoffScreen(l) {
   if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
-  el.innerHTML = `<div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
+  const nav = `<div class="r" style="justify-content:space-between;flex-wrap:nowrap"><button id="lprev" ${l.lap <= l.first ? "disabled" : ""} aria-label="Earlier lap">&#9664;</button>
+    <div style="text-align:center"><b>Lap ${l.lap}</b><div class="m">${new Date(l.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div></div>
+    <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
+  el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
     <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.gradient.map((c) => `<i style="flex:1;height:100%;background:${hsl(palette[c])}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
     <div class="m" style="margin-top:2px">24 mood colors with the sky above each one, in the order the baton moved</div>
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
@@ -181,6 +186,8 @@ function payoffScreen(l) {
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
+  $("#lprev").onclick = () => { stopSound(); lapN = l.lap - 1; load("payoff"); };
+  $("#lnext").onclick = () => { stopSound(); lapN = l.lap + 1 >= l.last ? null : l.lap + 1; load("payoff"); };
   const tb = $("#tune"); let playing = false;
   const idle = () => { playing = false; tb.textContent = "Play the tune"; };
   tb.onclick = () => {                                              // a second click stops it
@@ -307,7 +314,7 @@ function fixture(which, scn) {
   }
   if (which === "payoff") {
     if (scn === "none") return { error: "none" };
-    seed = 11; const sparse = scn === "sparse", stamps = [];
+    const lapNo = lapN || 117; seed = 11 + lapNo; const sparse = scn === "sparse", stamps = [];
     for (let i = 0; i < 24; i++) {
       if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, t: null, opensAt: Date.now() - 86400000 + i * 3600000, mine: false, hash: "0".repeat(64) }); continue; }
       const bot = i % 4 === 1;
@@ -316,7 +323,7 @@ function fixture(which, scn) {
         signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: bot ? "unknown" : ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: Math.floor(Date.now() / 1000) - 86400 + i * 3600 + rnd(7200), opensAt: Date.now() - 86400000 + i * 3600000, mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }
     const items = stamps, st = items.filter((x) => x.kind === "stamp");
-    return { lap: 117, held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
+    return { lap: lapNo, first: 1, last: 117, startsAt: Date.now() - 86400000 * (118 - lapNo), held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
       tally: { resolve: st.filter((x) => x.note === "resolve").length, tension: st.filter((x) => x.note === "tension").length, silent: items.filter((x) => x.note == null).length },
       sky: st.reduce((a, x) => (a[x.sky] = (a[x.sky] || 0) + 1, a), {}), stamps: items, yours: items.find((x) => x.mine) || null };
   }

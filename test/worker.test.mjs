@@ -334,3 +334,17 @@ test("a closed lap's stamps carry their exact time and when their window opened"
   const bot = lap.stamps.find((s) => s.bot && s.band === 3);
   assert.equal(bot.t, Math.floor((L + 3 * B.HOUR + B.WINDOW_H * B.HOUR) / 1000));   // sealed when its window closed
 });
+
+test("earlier laps can be read, and the lap says where the first and last are", async () => {
+  const env = makeEnv(); const me = browser(env);
+  await me("/api/band", { offset: 0 });
+  at(12.5); await me("/api/stamp", { color: 1 });
+  at(36.5); await me("/api/stamp", { color: 5 });                           // lap 2's window for this band
+  at(24 * 3 + 6);
+  const one = (await me("/api/lap?n=1")).data, two = (await me("/api/lap?n=2")).data;
+  assert.deepEqual([one.lap, one.first, one.last], [1, 1, 3]);
+  assert.equal(one.yours.color, 1);
+  assert.equal(two.yours.color, 5);
+  assert.equal((await me("/api/lap?n=0")).status, 404);
+  assert.equal((await me("/api/lap?n=4")).status, 404);
+});

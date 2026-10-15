@@ -229,7 +229,7 @@ async function lapView(ctx) {
   }
   const stamps = items.filter((r) => r.kind === "stamp");
   return {
-    lap: n, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
+    lap: n, first: 1, last, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
     held: stamps.filter((r) => !r.bot).length, bots: stamps.filter((r) => r.bot).length, unheld: items.length - stamps.length,
     gradient: items.map((r) => r.color),
     tune: items.map((r) => r.note),

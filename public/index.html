@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Band Baton</title>
+<title>Dawn Baton</title>
 <style>
 :root{--bg:#12124a;--panel:#1d1d63;--line:#6c6cff;--gold:#ffe066;--ink:#f2f2ff;--mute:#b9b9ff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.35 "Trebuchet MS",Verdana,sans-serif}
@@ -21,95 +21,146 @@ nav{display:flex;gap:6px}nav .tab{flex:1;padding:8px}
 .cell.open{background:var(--gold);color:var(--bg);font-weight:700}.cell.stamped,.cell.bot{background:#3a3a9a;color:var(--ink)}
 .cell.unheld{background:#0b0b2b;border-style:dashed}.cell.mine{outline:3px solid #6be08a}
 .grad{height:34px;border:2px solid #fff;margin:8px 0;display:flex}.grad i{flex:1}
+#pv{position:sticky;top:0;z-index:5;background:#ffe066;color:#12124a;font-weight:700;text-align:center;padding:6px;font-size:12px}
+#adm{position:fixed;left:0;right:0;bottom:0;background:#0b0b2b;border-top:2px solid var(--gold);padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:9}
+.slot{margin:4px 0 10px}.strand{padding:6px 0;border-bottom:1px solid #3a3a9a}.strand.me{background:#2b2b8a;border:2px solid var(--gold);padding:6px 8px;border-radius:4px}
 select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:3px}
 </style></head><body><main>
+<div id="pv" hidden>PREVIEW MODE: made-up screens. Nothing is sent or saved. Press X to close.</div>
 <div class="bar"></div>
-<div class="r" style="justify-content:space-between"><b style="font-size:20px">Band Baton</b><span class="m" id="lapno"></span></div>
+<div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
 </main>
+<div id="adm" hidden></div>
 <script>
 const $ = (s) => document.querySelector(s);
-const api = async (p, body) => (await fetch("/api/" + p, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {})).json();
-const hsl = (c) => c == null ? "#0b0b2b" : `hsl(${c.hsl[0]},${c.hsl[1]}%,${c.hsl[2]}%)`;
 const SKY = { clear: "Clear", cloud: "Overcast", fog: "Fog", drizzle: "Drizzle", rain: "Rain", snow: "Snow", storm: "Storm", unknown: "Unknown sky" };
+const hsl = (c) => c == null ? "#0b0b2b" : `hsl(${c.hsl[0]},${c.hsl[1]}%,${c.hsl[2]}%)`;
 const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-let palette = [], pick = { color: null, note: null };
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+let palette = [], lists = { phrase: [], feeling: [], gesture: [], signoff: [] };
+let pick = {}, isAdmin = false, PV = null, newCode = null;
 
-document.querySelectorAll(".tab").forEach((b) => b.onclick = () => {
-  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === b));
-  for (const id of ["catch", "payoff", "planet", "account"]) $("#" + id).hidden = id !== b.dataset.t;
-  load(b.dataset.t);
-});
+// In preview mode nothing is sent: writes are refused on the spot, and screens read made-up data.
+const api = async (p, body) => {
+  if (PV && body) return { error: "Preview mode: nothing was sent." };
+  if (PV) return {};
+  return (await fetch("/api/" + p, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {})).json();
+};
 
+document.querySelectorAll(".tab").forEach((b) => b.onclick = () => show(b.dataset.t));
+function show(t) {
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
+  for (const id of ["catch", "payoff", "planet", "account"]) $("#" + id).hidden = id !== t;
+  load(t);
+}
+async function load(which) {
+  const fx = PV && PV.screen === which ? fixture(which, PV.scenario) : PV ? fixture(which, DEFAULT[which]) : null;
+  if (which === "catch") return catchScreen(fx || await api("today"));
+  if (which === "payoff") return payoffScreen(fx || await api("lap"));
+  if (which === "planet") return planetScreen(fx || await api("planet"));
+  if (which === "account") return accountScreen(fx || await api("account"));
+}
+
+// ---------- catch ----------
 function bandPicker(cur) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
   return `<div class="r"><select id="off">${o}</select><button id="setband">${cur == null ? "That's my band" : "Change"}</button></div>
     <div class="m" style="margin-top:4px">Your band comes from your longitude, not a precise location. We guessed from your clock.</div>`;
 }
-function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { await api("band", { offset: +$("#off").value }); load("catch"); }; }
+function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); load("catch"); }; }
 
-async function load(which) {
-  if (which === "catch") return catchScreen(await api("today"));
-  if (which === "payoff") return payoffScreen(await api("lap"));
-  if (which === "planet") return planetScreen(await api("planet"));
-  if (which === "account") return accountScreen(await api("account"));
+function sunLine(sun) {
+  if (!sun) return "";
+  if (sun.polar) return `<div class="m">${sun.polar === "day" ? "Polar day: the sun doesn't set today." : "Polar night: the sun doesn't rise today."}</div>`;
+  const len = Math.round(sun.length / 1000), d = Math.round(Math.abs(sun.delta) / 1000);
+  const delta = sun.delta == null ? "" : ` (${sun.delta >= 0 ? "+" : "&minus;"}${Math.floor(d / 60)}m ${String(d % 60).padStart(2, "0")}s since yesterday)`;
+  return `<div class="m">Sunrise ${hm(sun.rise)} &middot; sunset ${hm(sun.set)} &middot; day length ${Math.floor(len / 3600)}h ${String(Math.floor(len / 60) % 60).padStart(2, "0")}m${delta}</div>`
+    + (sun.event ? `<div style="color:var(--gold);margin-top:2px"><b>${cap(sun.event)} today.</b></div>` : "");
 }
 
+const SLOTS = [["phrase", "Reply phrase"], ["feeling", "Feeling"], ["gesture", "Gesture"], ["signoff", "Sign-off"]];
+const words = (st) => ({
+  line: st.phrase != null ? lists.phrase[st.phrase] : null,
+  extra: [st.feeling != null ? lists.feeling[st.feeling] : null, st.gesture != null ? lists.gesture[st.gesture] : null, st.signoff != null ? lists.signoff[st.signoff] : null].filter(Boolean),
+});
+
 function catchScreen(d) {
-  palette = d.palette; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
+  palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
-  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div><div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
+  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p><div>${esc(d.band.label)}</div>`;
   if (!w.open) h += `<div class="m">Your window opens ${new Date(w.opensAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} and stays open 2 hours.</div>`;
   else h += `<div class="m">Open until ${hm(w.closesAt)}.</div>` + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
+  h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
   h += `<div style="margin-top:8px">${bandPicker(d.band.offset)}</div></div>`;
   if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it ended tomorrow morning.</div>`;
   else if (w.open) {
-    h += `<div class="p"><p class="h">From the band before you (the only line you can see)</p>` + (d.prev
-      ? `<div class="r"><span class="sw" style="cursor:default;background:${hsl(palette[d.prev.color])}"></span><span class="m">their mood</span><span class="m">their sky: ${SKY[d.prev.sky] || "?"}</span></div><div class="r" style="margin-top:8px"><button id="hear">Play last note</button><span class="m">they left: ${d.prev.note || "silence"}</span></div>`
-      : `<div class="m">Nobody has stamped yet this lap. You're first.</div>`) + `</div>`;
-    h += `<div class="p"><p class="h">Your stamp</p><div class="m">Mood color</div><div class="r" style="gap:4px;margin:4px 0 10px">${palette.map((c, i) => `<button class="sw" data-c="${i}" title="${c.name}" style="background:${hsl(c)}"></button>`).join("")}</div>
-      <div class="m">Note</div><div class="r" style="margin:4px 0 0">${d.notes.map((n) => `<button class="chip" data-n="${n}">${n[0].toUpperCase() + n.slice(1)}</button>`).join("")}</div></div>
+    h += `<div class="p"><p class="h">From the band before you (the only line you can see)</p>`;
+    if (d.prev) {
+      const t = words(d.prev);
+      h += (t.line ? `<div style="font-size:16px">&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">They left no phrase.</div>`)
+        + (t.extra.length ? `<div class="m" style="margin-top:2px">${esc(t.extra.join(" · "))}</div>` : "")
+        + `<div class="r" style="margin-top:8px"><span class="sw" style="cursor:default;background:${hsl(palette[d.prev.color])}"></span><span class="m">their mood</span><span class="m">their sky: ${SKY[d.prev.sky] || "?"}</span></div>
+           <div class="r" style="margin-top:8px"><button id="hear">Play last note</button><span class="m">they left: ${d.prev.note || "silence"}</span></div>`;
+    } else h += `<div class="m">Nobody has stamped yet this lap. You're first.</div>`;
+    h += `</div><div class="p"><p class="h">Your stamp</p><div class="m">Mood color</div><div class="r" style="gap:4px;margin:4px 0 10px">${palette.map((c, i) => `<button class="sw" data-k="color" data-v="${i}" title="${c.name}" style="background:${hsl(c)}"></button>`).join("")}</div>
+      <div class="m">Note</div><div class="r slot">${d.notes.map((n) => `<button class="chip" data-k="note" data-v="${n}">${cap(n)}</button>`).join("")}</div>
+      ${SLOTS.map(([k, label]) => `<div class="m">${label}</div><div class="r slot">${(lists[k] || []).map((t, i) => `<button class="chip" data-k="${k}" data-v="${i}">${esc(t)}</button>`).join("")}</div>`).join("")}</div>
       <button class="go" id="pass">Pass the baton west</button><div class="m">Every slot is optional. Your stamp seals when you pass it.</div><div class="m" id="msg"></div>`;
   }
-  el.innerHTML = h; wireBand(); pick = { color: null, note: null };
-  el.querySelectorAll("[data-c]").forEach((b) => b.onclick = () => { pick.color = pick.color === +b.dataset.c ? null : +b.dataset.c; el.querySelectorAll("[data-c]").forEach((x) => x.classList.toggle("on", +x.dataset.c === pick.color)); });
-  el.querySelectorAll("[data-n]").forEach((b) => b.onclick = () => { pick.note = pick.note === b.dataset.n ? null : b.dataset.n; el.querySelectorAll("[data-n]").forEach((x) => x.classList.toggle("on", x.dataset.n === pick.note)); });
+  el.innerHTML = h; wireBand(); pick = {};
+  el.querySelectorAll("[data-k]").forEach((b) => b.onclick = () => {
+    const k = b.dataset.k, v = k === "note" ? b.dataset.v : +b.dataset.v;
+    pick[k] = pick[k] === v ? null : v;
+    el.querySelectorAll(`[data-k="${k}"]`).forEach((x) => x.classList.toggle("on", pick[k] === (k === "note" ? x.dataset.v : +x.dataset.v)));
+  });
   const hear = $("#hear"); if (hear) hear.onclick = () => tone(d.prev && d.prev.note);
   const pass = $("#pass"); if (pass) pass.onclick = async () => { pass.disabled = true; const r = await api("stamp", pick); if (r.error) { $("#msg").textContent = r.error; pass.disabled = false; } else load("catch"); };
 }
 
-// resolve = a note that settles (down a fifth), tension = one that leans (up a tritone-ish); one short beep
+// resolve = a note that settles, tension = one that leans; one short beep
 function tone(note) {
   try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
     o.frequency.value = note === "resolve" ? 261.6 : note === "tension" ? 370 : 0; g.gain.value = note ? 0.15 : 0;
     o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.6); } catch {}
 }
 
+// ---------- yesterday ----------
+function strand(st, me) {
+  const t = words(st);
+  return `<div class="strand${me ? " me" : ""}"><div class="r" style="justify-content:space-between"><span class="m">${esc(st.label)}${st.bot ? " · bot" : ""}${me ? " · you" : ""}</span><span class="m">${SKY[st.sky] || ""}</span></div>
+    ${t.line ? `<div>&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">(no phrase)</div>`}
+    <div class="r" style="margin-top:3px"><span class="sw" style="cursor:default;width:44px;height:16px;background:${hsl(palette[st.color])}"></span>${st.note ? `<span class="chip">${cap(st.note)}</span>` : ""}<span class="m">${esc(t.extra.join(" · "))}</span></div></div>`;
+}
 function payoffScreen(l) {
   const el = $("#payoff");
   if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
-  const me = l.yours;
+  const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
   el.innerHTML = `<div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
-    <div class="grad">${l.gradient.map((c) => `<i style="background:${hsl(palette[c])}"></i>`).join("")}</div><div class="m">${l.gradient.length} mood colors, in the order the baton moved</div>
-    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve · ${l.tally.tension} tension · ${l.tally.silent} silent</span></div>
-    <div class="m" style="margin-top:6px">Sky along the lap: ${Object.entries(l.sky).map(([k, v]) => `${v} ${(SKY[k] || k).toLowerCase()}`).join(" · ") || "none"}</div></div>
-    ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>You chose <span class="sw" style="cursor:default;width:30px;height:14px;background:${hsl(palette[me.color])}"></span> ${me.note || "no note"}, under ${(SKY[me.sky] || "?").toLowerCase()} skies.<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}…${me.hash.slice(-4)}</div></div>` : ""}`;
+    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.gradient.map((c) => `<i style="flex:1;height:100%;background:${hsl(palette[c])}"></i>`).join("")}</div><div class="m">${l.gradient.length} mood colors, in the order the baton moved</div>
+    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
+    <div class="m" style="margin-top:6px">Sky along the lap: ${Object.entries(l.sky).map(([k, v]) => `${v} ${(SKY[k] || k).toLowerCase()}`).join(" &middot; ") || "none"}</div></div>
+    ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
+    <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
+      ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
   $("#tune").onclick = () => l.tune.forEach((n, i) => setTimeout(() => tone(n), i * 250));
+  const more = $("#more"); if (more) more.onclick = () => { $("#sl").innerHTML = shown.map((x) => strand(x, x.mine)).join(""); more.remove(); };
 }
 
+// ---------- planet ----------
 function planetScreen(p) {
   const el = $("#planet");
   if (!p.bands || !p.bands.length) { el.innerHTML = `<div class="p"><p class="h">The planet</p><div class="m">The first lap hasn't started.</div></div>`; return; }
   $("#lapno").textContent = `Lap ${p.lap}`;
   const n = (s) => p.bands.filter((b) => b.status === s).length;
-  el.innerHTML = `<div class="p"><p class="h">The baton right now</p><div class="m">${n("stamped") + n("bot")} of 24 bands have stamped · ${n("unheld")} unheld so far</div></div>
+  el.innerHTML = `<div class="p"><p class="h">The baton right now</p><div class="m">${n("stamped") + n("bot")} of 24 bands have stamped &middot; ${n("unheld")} unheld so far</div></div>
     <div class="p"><p class="h">24 solar bands</p><div class="grid">${p.bands.map((b) => `<div class="cell ${b.status}${b.mine ? " mine" : ""}" title="${b.status}">${b.label.replace("solar UTC", "")}</div>`).join("")}</div>
-    <div class="m" style="margin-top:8px">Yellow: open now · blue: stamped · dark: unheld · green outline: you</div></div>`;
+    <div class="m" style="margin-top:8px">Yellow: open now &middot; blue: stamped &middot; dark: unheld &middot; green outline: you</div></div>`;
 }
 
 // ---------- account: save codes and passkeys ----------
@@ -117,42 +168,49 @@ const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/
 const unb64 = (t) => { t = t.replace(/-/g, "+").replace(/_/g, "/"); return Uint8Array.from(atob(t + "===".slice((t.length + 3) % 4)), (c) => c.charCodeAt(0)); };
 const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
 const day = (s) => new Date(s * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
-let newCode = null;
-
 function accountScreen(a) {
   const el = $("#account"), has = a.codes.length || a.passkeys.length;
   el.innerHTML = `<div class="p"><p class="h">Your player</p>
-    <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} A save code or passkey lets you play as this player on any browser, so you keep your stamps.</div></div>
-    ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div></div>` : ""}
-    <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p>
+    <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
+    ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div><div style="margin-top:8px"><button id="dlcode">Download as a text file</button></div></div>` : ""}
+    <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p><div class="m" style="margin-bottom:6px">A code you write down or keep in a file. It works on any browser.</div>
       ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
       <div style="margin-top:6px"><button id="mkcode">Make a save code</button></div></div>
-    <div class="p"><p class="h">Passkeys (${a.passkeys.length})</p>
+    <div class="p"><p class="h">Passkeys (${a.passkeys.length})</p><div class="m" style="margin-bottom:6px">Log in with your fingerprint, face or device PIN. Nothing to write down.</div>
       ${a.passkeys.map((k) => `<div class="r" style="margin-bottom:4px"><span class="m">${esc(k.label || "passkey")} · made ${day(k.created_at)}</span><button data-rm="passkey" data-id="${k.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
-      <div style="margin-top:6px">${pkOk() ? '<button id="mkpk">Add a passkey</button>' : '<span class="m">This browser can\'t do passkeys. A save code works everywhere.</span>'}</div></div>
-    <div class="p"><p class="h">Log in on this device</p>
+      <div style="margin-top:6px">${pkOk() ? '<button id="mkpk">Add a passkey</button>' : '<span class="m">This browser can\'t do passkeys. Use a save code instead.</span>'}</div></div>
+    <div class="p"><p class="h">Log in on this device</p><div class="m" style="margin-bottom:4px">With a save code:</div>
       <div class="r"><input id="code" placeholder="K7QM-2XPA-9RTD-HV4C-8NBE" style="font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:4px 6px;flex:1;min-width:180px"><button id="uc">Use code</button></div>
-      ${pkOk() ? '<div style="margin-top:6px"><button id="up">Use a passkey</button></div>' : ""}</div>
+      ${pkOk() ? '<div class="m" style="margin:8px 0 4px">Or with a passkey:</div><div><button id="up">Log in with a passkey</button></div>' : ""}</div>
     ${has ? '<button id="out" style="align-self:flex-start">Log out of this browser</button>' : ""}
     <div class="m" id="amsg"></div>`;
   const say = (t) => { $("#amsg").textContent = t; };
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
+  const dl = $("#dlcode"); if (dl) dl.onclick = () => {
+    const text = `Dawn Baton save code\n\n${newCode}\n\nGo to ${location.origin}, open the Account tab, and paste this code under "Log in on this device" to play as your player on any browser.\nKeep this file private: anyone with the code can log in as you.\n`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    a.download = "dawn-baton-save-code.txt"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
   const mk = $("#mkcode"); if (mk) mk.onclick = async () => { const r = await api("codes", { action: "new" }); if (r.error) return say(r.error); newCode = r.code; load("account"); };
   el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => { const r = await api(b.dataset.rm, { action: "remove", id: +b.dataset.id }); if (r.error) say(r.error); else load("account"); });
   $("#uc").onclick = async () => { const r = await api("load", { code: $("#code").value }); if (r.error) return say(r.error); done("Logged in."); };
   const out = $("#out"); if (out) out.onclick = async () => { const r = await api("logout", {}); if (r.error) return say(r.error); done("Logged out."); };
   const mp = $("#mkpk"); if (mp) mp.onclick = async () => {
+    if (PV) return say("Preview mode: nothing was sent.");
     try {
       say("Waiting for your fingerprint, face or PIN...");
       const o = await api("passkey", { action: "register_options" }); if (o.error) return say(o.error);
       const cred = await navigator.credentials.create({ publicKey: { ...o, challenge: unb64(o.challenge), user: { ...o.user, id: unb64(o.user.id) }, excludeCredentials: o.excludeCredentials.map((c) => ({ ...c, id: unb64(c.id) })) } });
-      const r = await api("passkey", { action: "register", label: /Android/.test(navigator.userAgent) ? "Android" : /iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Mac/.test(navigator.userAgent) ? "Mac" : /Windows/.test(navigator.userAgent) ? "Windows PC" : "This device",
+      const ua = navigator.userAgent;
+      const r = await api("passkey", { action: "register", label: /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iPhone" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "This device",
         credential: { id: cred.id, response: { clientDataJSON: b64(cred.response.clientDataJSON), attestationObject: b64(cred.response.attestationObject) } } });
       if (r.error) return say(r.error);
-      load("account");
+      load("account"); setTimeout(() => say("Passkey added."), 200);
     } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
   };
   const up = $("#up"); if (up) up.onclick = async () => {
+    if (PV) return say("Preview mode: nothing was sent.");
     try {
       say("Waiting for your passkey...");
       const o = await api("passkey", { action: "login_options" }); if (o.error) return say(o.error);
@@ -163,5 +221,79 @@ function accountScreen(a) {
     } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
   };
 }
+
+// ---------- admin: preview every screen with made-up data (X key) ----------
+// Reads nothing from the game and writes nothing: in preview, api() refuses every write.
+const SCENARIOS = {
+  catch: { nobands: "No band yet", waiting: "Waiting for dawn", open: "Open, with a line before", first: "Open, you're first", stamped: "Already passed", equinox: "Open, equinox day", polar: "Open, polar night" },
+  payoff: { full: "A full lap", sparse: "Mostly unheld", missed: "You missed it", none: "No finished lap yet" },
+  planet: { mid: "Mid-lap", start: "Lap just started", end: "Last bands", none: "Not started" },
+  account: { fresh: "New player", saved: "Codes and a passkey", justmade: "Just made a code" },
+};
+const DEFAULT = { catch: "open", payoff: "full", planet: "mid", account: "saved" };
+let seed = 7; const rnd = (n) => (seed = (seed * 16807) % 2147483647) % n;
+const bandInfo = (i) => ({ index: i, offset: 12 - i, label: `solar UTC${12 - i >= 0 ? "+" : "-"}${Math.abs(12 - i)}` });
+
+function fixture(which, scn) {
+  const now = Date.now(), H = 3600000, at = (h, m) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
+  if (which === "catch") {
+    const sun = { rise: at(6, 12), set: at(17, 36), length: 11 * H + 24 * 60000, polar: null, delta: -130000, event: null };
+    const base = { now, lap: 118, palette, notes: ["resolve", "tension"], lists, sun, lastClosedLap: 117, band: bandInfo(3), stamped: false, sky: "rain",
+      window: { lap: 118, open: true, opensAt: now - H / 2, closesAt: now + 1.5 * H },
+      prev: { band: 2, label: bandInfo(2).label, color: 6, note: "tension", sky: "clear", phrase: 3, feeling: 1, gesture: 6, signoff: 2 } };
+    return {
+      nobands: { ...base, band: null, window: null, prev: null, sky: null },
+      waiting: { ...base, window: { lap: 118, open: false, opensAt: now + 5 * H, closesAt: now + 7 * H }, prev: null, sky: null },
+      open: base, first: { ...base, prev: null }, stamped: { ...base, stamped: true, prev: null, sky: null },
+      equinox: { ...base, sun: { ...sun, event: "equinox", delta: 12000 } },
+      polar: { ...base, sun: { rise: null, set: null, length: 0, polar: "night", delta: null, event: null } },
+    }[scn];
+  }
+  if (which === "payoff") {
+    if (scn === "none") return { error: "none" };
+    seed = 11; const sparse = scn === "sparse", stamps = [];
+    for (let i = 0; i < 24; i++) {
+      if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, mine: false, hash: "0".repeat(64) }); continue; }
+      const bot = i % 4 === 1;
+      stamps.push({ band: i, label: bandInfo(i).label, kind: "stamp", bot, color: rnd(12), note: rnd(9) ? ["resolve", "tension"][rnd(2)] : null,
+        phrase: rnd(4) ? rnd(lists.phrase.length || 1) : null, feeling: rnd(3) ? rnd(lists.feeling.length || 1) : null, gesture: rnd(3) ? rnd(lists.gesture.length || 1) : null,
+        signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, sky: ["clear", "cloud", "rain", "fog", "snow"][rnd(5)], mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
+    }
+    const items = stamps, st = items.filter((x) => x.kind === "stamp");
+    return { lap: 117, held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
+      tally: { resolve: st.filter((x) => x.note === "resolve").length, tension: st.filter((x) => x.note === "tension").length, silent: items.filter((x) => x.note == null).length },
+      sky: st.reduce((a, x) => (a[x.sky] = (a[x.sky] || 0) + 1, a), {}), stamps: items, yours: items.find((x) => x.mine) || null };
+  }
+  if (which === "planet") {
+    if (scn === "none") return { lap: 0, bands: [] };
+    const k = { mid: 11, start: 0, end: 23 }[scn], bands = [];
+    for (let i = 0; i < 24; i++) bands.push({ band: i, label: bandInfo(i).label, status: i < k ? (i % 7 === 5 ? "unheld" : i % 4 === 1 ? "bot" : "stamped") : i === k ? "open" : "waiting", mine: i === 18 });
+    return { lap: 118, bands };
+  }
+  if (which === "account") {
+    const t = Math.floor(Date.now() / 1000);
+    if (scn === "fresh") { newCode = null; return { player: false, admin: true, codes: [], passkeys: [], devices: 0 }; }
+    if (scn === "justmade") newCode = "K7QM-2XPA-9RTD-HV4C-8NBE"; else newCode = null;
+    return { player: true, admin: true, codes: [{ id: 1, created_at: t - 86400 * 3, last_used_at: t - 3600 }], passkeys: [{ id: 1, label: "Windows PC", created_at: t - 86400 * 3, last_used_at: null }], devices: 2 };
+  }
+}
+
+function adminPanel() {
+  const bar = $("#adm");
+  if (!isAdmin) return;
+  if (!bar.hidden) { bar.hidden = true; PV = null; newCode = null; $("#pv").hidden = true; return show(document.querySelector(".tab.on").dataset.t); }
+  const cur = document.querySelector(".tab.on").dataset.t;
+  const opts = Object.entries(SCENARIOS).map(([k, m]) => `<optgroup label="${cap(k)}">${Object.entries(m).map(([id, name]) => `<option value="${k}:${id}">${name}</option>`).join("")}</optgroup>`).join("");
+  bar.innerHTML = `<b style="color:var(--gold)">ADMIN</b><select id="pvs">${opts}</select><span class="m">Made-up screens, nothing sent. X closes.</span>`;
+  bar.hidden = false; $("#pv").hidden = false;
+  const sel = $("#pvs"), go = () => { const [screen, scenario] = sel.value.split(":"); PV = { screen, scenario }; show(screen); };
+  sel.value = `${cur}:${DEFAULT[cur]}`; sel.onchange = go; go();
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "x" || e.ctrlKey || e.metaKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test((e.target || {}).tagName || "")) return;
+  adminPanel();
+});
+
 load("catch");
+fetch("/api/account").then((r) => r.json()).then((a) => { isAdmin = !!a.admin; }).catch(() => {});
 </script></body></html>

@@ -40,8 +40,11 @@ test("a band's window is found for any moment, including before launch and betwe
 });
 
 test("stamps are indices; every slot can be blank", () => {
-  assert.deepEqual(B.checkStamp({}), { color: null, note: null });
-  assert.deepEqual(B.checkStamp({ color: 3, note: "tension" }), { color: 3, note: "tension" });
+  const blank = { color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null };
+  assert.deepEqual(B.checkStamp({}), blank);
+  assert.deepEqual(B.checkStamp({ color: 3, note: "tension", phrase: 0, signoff: 9 }), { ...blank, color: 3, note: "tension", phrase: 0, signoff: 9 });
+  assert.ok(B.checkStamp({ phrase: B.PHRASES.length }).error);
+  assert.ok(B.checkStamp({ feeling: "calm" }).error);
   assert.ok(B.checkStamp({ color: 12 }).error);
   assert.ok(B.checkStamp({ color: "red" }).error);
   assert.ok(B.checkStamp({ note: "loud" }).error);

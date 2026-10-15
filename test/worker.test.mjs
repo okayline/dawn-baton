@@ -200,7 +200,7 @@ test("a stranger can't remove someone else's code or passkey", async () => {
 test("passkey options come back with a challenge, for adding and for logging in", async () => {
   const env = makeEnv(); const b = browser(env);
   const reg = (await b("/api/passkey", { action: "register_options" })).data;
-  assert.ok(reg.challenge && reg.rp.id === "baton.example" && reg.rp.name === "Band Baton");
+  assert.ok(reg.challenge && reg.rp.id === "baton.example" && reg.rp.name === "Dawn Baton");
   const login = (await b("/api/passkey", { action: "login_options" })).data;
   assert.ok(login.challenge);
   assert.equal((await b("/api/passkey", { action: "login", credential: { id: "nope", response: {} } })).status, 400);
@@ -213,4 +213,46 @@ test("the workers.dev address redirects to the canonical domain", async () => {
   assert.equal(res.headers.get("location"), "https://dawn.example.app/api/today?x=1");
   const ok = await worker.fetch(new Request("https://dawn.example.app/api/today"), env);
   assert.equal(ok.status, 200);
+});
+
+// ---------- stamp slots, sun, admin ----------
+
+test("a stamp holds a phrase, feeling, gesture and sign-off, and the next band reads them back", async () => {
+  const env = makeEnv(); const east = browser(env), west = browser(env);
+  await east("/api/band", { offset: 3 }); await west("/api/band", { offset: 2 });
+  at(9.5);
+  assert.equal((await east("/api/stamp", { color: 4, note: "resolve", phrase: 3, feeling: 1, gesture: 6, signoff: 2 })).status, 200);
+  at(10.5);
+  const prev = (await west("/api/today")).data.prev;
+  assert.deepEqual([prev.phrase, prev.feeling, prev.gesture, prev.signoff], [3, 1, 6, 2]);
+  at(30);
+  const lap = (await west("/api/lap")).data;
+  assert.equal(lap.stamps.find((s) => s.band === 9).signoff, 2);
+});
+
+test("slot indexes outside the lists are refused", async () => {
+  const env = makeEnv(); const me = browser(env);
+  await me("/api/band", { offset: 0 }); at(12.5);
+  for (const bad of [{ phrase: 999 }, { feeling: -1 }, { gesture: "waves" }, { signoff: 1.5 }]) assert.equal((await me("/api/stamp", bad)).status, 400);
+  assert.equal((await me("/api/stamp", { phrase: null, feeling: 0 })).status, 200);
+});
+
+test("today carries the word lists, and the sun line when the place is known", async () => {
+  const env = makeEnv({ GEO: { latitude: 21.3, longitude: -157.9 } }); const me = browser(env);
+  at(12.5);
+  const d = (await me("/api/today")).data;
+  assert.ok(d.lists.phrase.length > 10 && d.lists.signoff.length > 5);
+  assert.ok(d.sun.rise < d.sun.set && d.sun.length > 10 * 3600000);
+  assert.equal(typeof d.sun.delta, "number");
+  const none = (await browser(makeEnv())("/api/today")).data;
+  assert.equal(none.sun, null);
+});
+
+test("only an admin player is marked admin", async () => {
+  const env = makeEnv(); const me = browser(env), other = browser(env);
+  await me("/api/band", { offset: 0 }); await other("/api/band", { offset: 1 });
+  assert.equal((await me("/api/account")).data.admin, false);
+  env.DB.raw.prepare("UPDATE players SET admin = 1 WHERE id = 1").run();
+  assert.equal((await me("/api/account")).data.admin, true);
+  assert.equal((await other("/api/account")).data.admin, false);
 });

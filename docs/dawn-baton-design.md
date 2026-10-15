@@ -1,4 +1,4 @@
-# Band Baton: design notes
+# Dawn Baton: design notes
 
 A daily check-in game synced to the real sun, companion to the Moon game (Daily Digital Demon Dungeon). Notes from the design conversation, Oct 15 2026. Everything here is still a draft.
 

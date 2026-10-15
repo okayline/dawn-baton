@@ -1,6 +1,6 @@
-# Band Baton
+# Dawn Baton
 
-A daily check-in game synced to the real sun. 24 fixed solar bands, one baton that travels west around the planet once a day, one picked-from-lists stamp per player per lap, all sealed on a SHA-256 hash chain. Companion to Daily Digital Demon Dungeon. Design notes: [docs/band-baton-design.md](docs/band-baton-design.md).
+A daily check-in game synced to the real sun. 24 fixed solar bands, one baton that travels west around the planet once a day, one picked-from-lists stamp per player per lap, all sealed on a SHA-256 hash chain. Companion to Daily Digital Demon Dungeon. Design notes: [docs/dawn-baton-design.md](docs/dawn-baton-design.md).
 
 ## Run it
 

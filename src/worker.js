@@ -1,4 +1,4 @@
-// Band Baton Worker: the baton, cookie players, one stamp per player per lap, and the ledger.
+// Dawn Baton Worker: the baton, cookie players, one stamp per player per lap, and the ledger.
 //
 // API (all JSON):
 //   GET  /api/today          your band, your catch window, the line before yours (in your window), your sky
@@ -15,7 +15,8 @@
 
 import * as B from "../engine/baton.js";
 import { seal, lapRecord, stampRecord, gapRecord, sha256, verifyChain, GENESIS } from "./ledger.js";
-import { skyFor } from "./weather.js";
+import { skyFor, coarsePlace } from "./weather.js";
+import { sunReport } from "../engine/sun.js";
 import { MAX_CODES, newSaveCode, hashCode, newSession, newToken, rateLimit } from "./saves.js";
 import { registerOptions, verifyRegistration, loginOptions, verifyLogin } from "./passkeys.js";
 
@@ -119,6 +120,10 @@ async function botStamp(env, lap, band) {
   return {
     color: n(0) % 12 === 11 && n(1) % 3 ? null : n(0) % B.COLORS.length,   // frost is a bot's "blank-ish" choice, kept rare
     note: n(2) % 9 === 0 ? null : B.NOTES[n(3) % 2],
+    phrase: n(4) % 4 === 0 ? null : n(5) % B.PHRASES.length,
+    feeling: n(6) % 3 === 0 ? null : n(7) % B.FEELINGS.length,
+    gesture: n(8) % 3 === 0 ? null : n(9) % B.GESTURES.length,
+    signoff: n(10) % 3 === 0 ? null : n(11) % B.SIGNOFFS.length,
     sky: "unknown", player: null,
   };
 }
@@ -128,7 +133,8 @@ async function botStamp(env, lap, band) {
 const parse = (row) => ({ ...JSON.parse(row.record), id: row.id, hash: row.hash });
 const view = (r, mineId = null) => ({
   band: r.band, label: B.bandLabel(r.band), kind: r.kind, bot: !!r.bot,
-  color: r.color ?? null, note: r.note ?? null, sky: r.sky ?? null, mine: mineId != null && r.player === mineId,
+  color: r.color ?? null, note: r.note ?? null, phrase: r.phrase ?? null, feeling: r.feeling ?? null,
+  gesture: r.gesture ?? null, signoff: r.signoff ?? null, sky: r.sky ?? null, mine: mineId != null && r.player === mineId,
   hash: r.hash,
 });
 
@@ -141,8 +147,10 @@ async function stampsOf(ctx, lap) {
 async function today(ctx) {
   const me = await player(ctx);
   const { launch, t } = ctx;
+  const place = coarsePlace(ctx.env, ctx.req);
   const out = { now: t, launch, lap: B.currentLap(launch, t), band: null, window: null, stamped: false, prev: null, sky: null,
-    palette: B.COLORS, notes: B.NOTES, lastClosedLap: B.lastClosedLap(launch, t) };
+    palette: B.COLORS, notes: B.NOTES, lists: B.LISTS, sun: null, lastClosedLap: B.lastClosedLap(launch, t) };
+  if (place) out.sun = sunReport(place.lat, place.lon, t);
   if (!me || me.band == null) return out;
   out.band = { index: me.band, offset: B.offsetOf(me.band), label: B.bandLabel(me.band) };
   const w = B.windowFor(launch, me.band, t);
@@ -179,7 +187,7 @@ async function stamp(ctx) {
   const when = sec(ctx.t);
   const res = await seal(ctx.db, {
     kind: "stamp", lap: w.lap, band: me.band, playerId: me.id,
-    record: stampRecord({ lap: w.lap, band: me.band, color: s.color, note: s.note, sky, player: me.id, bot: false, t: when }), t: when,
+    record: stampRecord({ lap: w.lap, band: me.band, color: s.color, note: s.note, phrase: s.phrase, feeling: s.feeling, gesture: s.gesture, signoff: s.signoff, sky, player: me.id, bot: false, t: when }), t: when,
   });
   if (res === "duplicate") throw new Oops("You've already passed the baton this lap.", 409);
   return { ok: true, lap: w.lap, band: me.band, sealsAt: w.closesAt, message: "Passed. See the finished lap tomorrow morning." };
@@ -244,12 +252,12 @@ const body = async (ctx) => { try { return await ctx.req.json(); } catch { throw
 
 async function account(ctx) {
   const me = await player(ctx);
-  if (!me) return { player: false, codes: [], passkeys: [], devices: 0 };
+  if (!me) return { player: false, admin: false, codes: [], passkeys: [], devices: 0 };
   const { db } = ctx;
   const codes = (await db.prepare("SELECT id, created_at, last_used_at FROM save_codes WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const passkeys = (await db.prepare("SELECT id, label, created_at, last_used_at FROM passkeys WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
-  return { player: true, codes, passkeys, devices };
+  return { player: true, admin: !!me.admin, codes, passkeys, devices };
 }
 
 async function codes(ctx) {

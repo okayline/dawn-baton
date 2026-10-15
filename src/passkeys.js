@@ -149,10 +149,10 @@ async function checkClient(env, request, clientDataB64, type, kind) {
 export async function registerOptions(env, request, user) {
   const { rpId } = siteOf(request);
   const { results } = await env.DB.prepare("SELECT cred_id FROM passkeys WHERE player_id = ?").bind(user.id).all();
-  const label = `Band Baton player ${user.id}`;
+  const label = `Dawn Baton player ${user.id}`;
   return {
     challenge: await newChallenge(env, "register", user.id),
-    rp: { name: "Band Baton", id: rpId },
+    rp: { name: "Dawn Baton", id: rpId },
     user: { id: b64url(enc.encode("baton:" + user.id)), name: label, displayName: label },
     pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
     authenticatorSelection: { residentKey: "required", requireResidentKey: true, userVerification: "preferred" },

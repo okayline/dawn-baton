@@ -1,4 +1,4 @@
--- Band Baton database (Cloudflare D1)
+-- Dawn Baton database (Cloudflare D1)
 --   npx wrangler d1 execute baton-db --remote --file=schema.sql
 
 -- A player is a browser cookie (only the token's SHA-256 is stored). `band` is the 0..23 baton index

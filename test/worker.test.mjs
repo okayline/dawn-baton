@@ -348,3 +348,19 @@ test("earlier laps can be read, and the lap says where the first and last are", 
   assert.equal((await me("/api/lap?n=0")).status, 404);
   assert.equal((await me("/api/lap?n=4")).status, 404);
 });
+
+test("a closed lap tells a player who missed it when their band is next up", async () => {
+  const env = makeEnv(); const me = browser(env), stranger = browser(env);
+  await me("/api/band", { offset: 0 });                                     // band 12: window 12h-14h into each lap
+  at(26);
+  let lap = (await me("/api/lap")).data;
+  assert.equal(lap.yours, null);
+  assert.deepEqual([lap.next.open, lap.next.opensAt], [false, L + 36 * B.HOUR]);
+  at(37);                                                                    // their next window is open now
+  lap = (await me("/api/lap")).data;
+  assert.deepEqual([lap.next.open, lap.next.closesAt], [true, L + 38 * B.HOUR]);
+  await me("/api/stamp", { color: 1 });                                      // after stamping, "next" moves on to the next lap
+  lap = (await me("/api/lap")).data;
+  assert.deepEqual([lap.next.open, lap.next.opensAt], [false, L + 60 * B.HOUR]);
+  assert.equal((await stranger("/api/lap")).data.next, null);                // no player, no band: nothing to say
+});

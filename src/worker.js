@@ -220,6 +220,13 @@ async function lapView(ctx) {
   const rows = await stampsOf(ctx, n);
   // t = when the stamp was sealed, in seconds (for a bot's stamp: when its band's window closed); opensAt = when that band's window opened
   const items = rows.map((r) => ({ ...view(r, me && me.id), opensAt: B.opensAt(launch, n, r.band) }));
+  // when this player's band is next up (so a missed lap can say so): skips a window they've already stamped
+  let next = null;
+  if (me && me.band != null) {
+    let w = B.windowFor(launch, me.band, t);
+    if (w.open && await ctx.db.prepare("SELECT 1 FROM ledger WHERE lap = ? AND player_id = ? AND kind = 'stamp'").bind(w.lap, me.id).first()) w = B.windowFor(launch, me.band, w.closesAt);
+    next = { open: w.open, opensAt: w.opensAt, closesAt: w.closesAt };
+  }
   // names are looked up now, not sealed: the ledger only ever holds player ids
   const ids = [...new Set(rows.filter((r) => r.kind === "stamp" && r.player != null).map((r) => r.player))];
   if (ids.length) {
@@ -229,7 +236,7 @@ async function lapView(ctx) {
   }
   const stamps = items.filter((r) => r.kind === "stamp");
   return {
-    lap: n, first: 1, last, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
+    next, lap: n, first: 1, last, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
     held: stamps.filter((r) => !r.bot).length, bots: stamps.filter((r) => r.bot).length, unheld: items.length - stamps.length,
     gradient: items.map((r) => r.color),
     tune: items.map((r) => r.note),

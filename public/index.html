@@ -156,6 +156,12 @@ const skyIcon = (st, size = 14) => {
   if (st.kind === "gap") return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${ICON[st.sky] || ICON.unknown}</svg>`;
 };
+const nextWindow = (n) => {
+  if (n.open) return `Your window is open now, until ${hm(n.closesAt)}.`;
+  const d = new Date(n.opensAt), today = new Date(), tomorrow = new Date(today.getTime() + 86400000);
+  const day = d.toDateString() === today.toDateString() ? "today" : d.toDateString() === tomorrow.toDateString() ? "tomorrow" : d.toLocaleDateString([], { weekday: "long" });
+  return `Your next window is ${day} at ${hm(n.opensAt)}.`;
+};
 const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 const inWindow = (st) => { const m = Math.max(0, Math.round((st.t * 1000 - st.opensAt) / 60000)); return m < 1 ? "as the window opened" : `${m} min into the window`; };
 function strand(st, me) {
@@ -183,6 +189,7 @@ function payoffScreen(l) {
     <div class="m" style="margin-top:2px">24 mood colors with the sky above each one, in the order the baton moved</div>
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
     </div>
+    ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
@@ -323,7 +330,7 @@ function fixture(which, scn) {
         signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: bot ? "unknown" : ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: Math.floor(Date.now() / 1000) - 86400 + i * 3600 + rnd(7200), opensAt: Date.now() - 86400000 + i * 3600000, mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }
     const items = stamps, st = items.filter((x) => x.kind === "stamp");
-    return { lap: lapNo, first: 1, last: 117, startsAt: Date.now() - 86400000 * (118 - lapNo), held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
+    return { next: { open: false, opensAt: at(6, 12) + 86400000, closesAt: at(8, 12) + 86400000 }, lap: lapNo, first: 1, last: 117, startsAt: Date.now() - 86400000 * (118 - lapNo), held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
       tally: { resolve: st.filter((x) => x.note === "resolve").length, tension: st.filter((x) => x.note === "tension").length, silent: items.filter((x) => x.note == null).length },
       sky: st.reduce((a, x) => (a[x.sky] = (a[x.sky] || 0) + 1, a), {}), stamps: items, yours: items.find((x) => x.mine) || null };
   }

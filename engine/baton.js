@@ -84,7 +84,7 @@ export function skyFromWmo(code) {
 // language later. Append new entries to the END of a list (indices are sealed in the ledger forever).
 export const PHRASES = [
   "Right back at you!", "Morning to you too!", "Hi, hi, hi!", "Same, honestly.",
-  "You made my morning.", "Okay that made me smile.", "Sending a warm wave.", "It's morning already??",
+  "You made my day.", "Okay that made me smile.", "Sending a warm wave.", "Wait, that is so true.",
   "Still half asleep, hi.", "Look at you go.", "Keep being you.", "Warm hands, friend.",
   "Sunshine received.", "Big hug from over here.", "Rooting for you.", "Thanks for the light.",
   "Let's make it a good one.", "Hope your coffee's hot.", "Onwards!!", "Keeping it short.",
@@ -96,9 +96,9 @@ export const FEELINGS = [
   "thankful", "a bit off",
 ];
 export const GESTURES = [
-  "mid-yawn", "stretching like a cat", "arguing with my alarm", "talking to my coffee",
-  "waving at the sun", "squinting at the sunrise", "humming off-key", "doing a tiny dance",
-  "staring out the window", "hunting for socks", "still in pajamas", "smiling at nothing",
+  "mid-yawn", "stretching like a cat", "talking to a plant", "talking to my coffee",
+  "waving at the sun", "rehearsing a speech", "humming off-key", "doing a tiny dance",
+  "staring out the window", "pretending to be productive", "eating cereal standing up", "smiling at nothing",
 ];
 export const SIGNOFFS = [
   "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",

@@ -153,10 +153,8 @@ const ICON = {
   unknown: '<circle cx="8" cy="8" r="1.4" fill="#6c6cff"/>',
 };
 // A cell with no mood color of its own: a very light pastel for the weather there. Real colors stay full strength.
-const PASTEL = { clear: "hsl(52,100%,78%)", cloud: "hsl(0,0%,76%)", fog: "hsl(30,55%,72%)", drizzle: "hsl(160,60%,76%)", rain: "hsl(212,90%,78%)", snow: "hsl(290,85%,95%)", storm: "hsl(340,75%,80%)" };
-// light diagonal stripes on top mark a cell as "no color of its own", so it never reads as a real (pale) mood color
-const STRIPES = "repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, rgba(255,255,255,0) 2px 5px)";
-const cellBg = (st) => st.color != null ? hsl(palette[st.color]) : `${STRIPES}, ${PASTEL[st.fillSky] || "hsl(240,15%,58%)"}`;
+const PASTEL = { clear: "hsl(50,90%,88%)", cloud: "hsl(215,25%,86%)", fog: "hsl(200,10%,84%)", drizzle: "hsl(190,55%,86%)", rain: "hsl(210,70%,84%)", snow: "hsl(255,60%,95%)", storm: "hsl(270,45%,84%)" };
+const cellBg = (st) => st.color != null ? hsl(palette[st.color]) : PASTEL[st.fillSky] || "hsl(240,12%,70%)";
 const skyIcon = (st, size = 14) => {
   if (st.kind === "gap" && !ICON[st.fillSky]) return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
   const sky = st.kind === "gap" ? st.fillSky : st.sky;

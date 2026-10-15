@@ -5,10 +5,15 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 ---
 
 ## v0.6 — "One of a Kind"
-**Thu Oct 15, 2026 · (not pushed yet)**
+**Thu Oct 15, 2026 · 1:33 PM HST**
 
 - **Names are unique.** If the two words you pick already belong to someone, you don't get a number: nothing is saved and you're offered a free pair to try.
 - **The version number** is shown at the bottom of the page.
+- **Every stamp slot asks a question** ("What color is your morning?", "How do you sign off?" and so on), so a choice has some context.
+- **Catch screen:** you see what the last band left (their words, color, weather, and their band number like "+9" with a loose "a while ago") with no labels. Who they were and the exact time stay hidden until the lap closes.
+- **Tune:** the play button plays the last 3 notes slowly, and a second press stops it. Picking Resolve or Tension plays that note.
+- **Yesterday:** go back through earlier laps with the arrows. If you missed a lap, it says so and when your next window is. Each stamp is numbered and shows the time to the second.
+- **The lap bar** sits on a starry sky: 24 softer colors, empty bands see-through. Weather icons and note symbols (music note = resolve, flat = tension, dash = silent or unheld) line up underneath, and a "Play the tune" button plays the whole lap. Entries show the weather icon on the right.
 
 ## v0.5 — "Two Words"
 **Thu Oct 15, 2026 · 12:33 PM HST**

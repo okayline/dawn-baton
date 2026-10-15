@@ -6,7 +6,7 @@
   "assets": { "directory": "public", "run_worker_first": ["/api/*"] },
   "d1_databases": [
     // create with: npx wrangler d1 create baton-db   (then paste its id here)
-    { "binding": "DB", "database_name": "baton-db", "database_id": "REPLACE_WITH_D1_ID" }
+    { "binding": "DB", "database_name": "baton-db", "database_id": "9788d853-6b1b-417d-8eba-4aaccab3e66f" }
   ],
   "vars": {
     // When lap 1 starts: the date-line band's 06:00 solar sunrise, i.e. 18:00 UTC the day before.

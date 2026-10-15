@@ -118,23 +118,49 @@ function catchScreen(d) {
   el.querySelectorAll("[data-k]").forEach((b) => b.onclick = () => {
     const k = b.dataset.k, v = k === "note" ? b.dataset.v : +b.dataset.v;
     pick[k] = pick[k] === v ? null : v;
+    if (k === "note" && pick[k]) { stopSound(); tone(pick[k]); }          // hear the note you chose
     el.querySelectorAll(`[data-k="${k}"]`).forEach((x) => x.classList.toggle("on", pick[k] === (k === "note" ? x.dataset.v : +x.dataset.v)));
   });
-  const hear = $("#hear"); if (hear) hear.onclick = () => tone(d.prev && d.prev.note);
+  const hear = $("#hear"); if (hear) hear.onclick = () => { stopSound(); tone(d.prev && d.prev.note); };
   const pass = $("#pass"); if (pass) pass.onclick = async () => { pass.disabled = true; const r = await api("stamp", pick); if (r.error) { $("#msg").textContent = r.error; pass.disabled = false; } else load("catch"); };
 }
 
-// resolve = a note that settles, tension = one that leans; one short beep
-function tone(note) {
-  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
-    o.frequency.value = note === "resolve" ? 261.6 : note === "tension" ? 370 : 0; g.gain.value = note ? 0.15 : 0;
-    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.6); } catch {}
+// resolve = a note that settles, tension = one that leans. One shared audio context; every sound can be stopped.
+let ac = null; const live = new Set(); let tuneTimer = null;
+function ctxAudio() { try { ac = ac || new AudioContext(); if (ac.state === "suspended") ac.resume(); return ac; } catch { return null; } }
+function tone(note, delay = 0, dur = 0.6) {
+  const a = note && ctxAudio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime + delay;
+  o.frequency.value = note === "resolve" ? 261.6 : 370;
+  g.gain.setValueAtTime(0.15, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+  live.add(o); o.onended = () => live.delete(o);
 }
+function stopSound() { clearTimeout(tuneTimer); for (const o of live) { try { o.stop(); } catch {} } live.clear(); }
 
 // ---------- yesterday ----------
+// Small weather icons (inline SVG, 24 across, lined up with the 24 mood colors above them).
+const ICON = {
+  clear: '<circle cx="8" cy="8" r="3" fill="#ffe066"/><g stroke="#ffe066" stroke-width="1.2" stroke-linecap="round"><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3"/></g>',
+  cloud: '<path d="M4.5 12h7a2.7 2.7 0 0 0 .3-5.4A3.6 3.6 0 0 0 5 5.9 3.1 3.1 0 0 0 4.5 12z" fill="#b9b9ff"/>',
+  fog: '<g stroke="#b9b9ff" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h11M1.5 8h11M3.5 11h10"/></g>',
+  drizzle: '<path d="M4.5 9h7a2.3 2.3 0 0 0 .2-4.6A3.2 3.2 0 0 0 5.2 4 2.7 2.7 0 0 0 4.5 9z" fill="#b9b9ff"/><g stroke="#5dc8ff" stroke-width="1.2" stroke-linecap="round"><path d="M6 11.2v1M9 11.5v1"/></g>',
+  rain: '<path d="M4.5 8.5h7a2.3 2.3 0 0 0 .2-4.6A3.2 3.2 0 0 0 5.2 3.6 2.7 2.7 0 0 0 4.5 8.5z" fill="#8a9bd6"/><g stroke="#5dc8ff" stroke-width="1.4" stroke-linecap="round"><path d="M5.5 10.5l-.7 2.5M8.5 10.5l-.7 2.5M11.5 10.5l-.7 2.5"/></g>',
+  snow: '<g stroke="#f2f2ff" stroke-width="1.2" stroke-linecap="round"><path d="M8 2v12M2.8 5l10.4 6M13.2 5L2.8 11"/></g>',
+  storm: '<path d="M4.5 8h7a2.3 2.3 0 0 0 .2-4.6A3.2 3.2 0 0 0 5.2 3.1 2.7 2.7 0 0 0 4.5 8z" fill="#6c6cff"/><path d="M8.6 7.5L6.4 11h1.9l-.8 3.2 3-4.2H8.7z" fill="#ffe066"/>',
+  unknown: '<circle cx="8" cy="8" r="1.4" fill="#6c6cff"/>',
+};
+const skyIcon = (st) => {
+  if (st.kind === "gap") return `<svg viewBox="0 0 16 16" width="14" height="14"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
+  return `<svg viewBox="0 0 16 16" width="14" height="14">${ICON[st.sky] || ICON.unknown}</svg>`;
+};
+const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+const inWindow = (st) => { const m = Math.max(0, Math.round((st.t * 1000 - st.opensAt) / 60000)); return m < 1 ? "as the window opened" : `${m} min into the window`; };
 function strand(st, me) {
   const t = words(st);
+  const when = st.t == null ? "" : st.bot ? `window closed ${hms(st.t * 1000)}` : `${hms(st.t * 1000)} &middot; ${inWindow(st)}`;
   return `<div class="strand${me ? " me" : ""}"><div class="r" style="justify-content:space-between"><span class="m">${esc(st.label)}${st.name ? " · " + esc(st.name) : ""}${st.bot ? " · bot" : ""}${me ? " · you" : ""}</span><span class="m">${SKY[st.sky] || ""}</span></div>
+    ${when ? `<div class="m">${when}</div>` : ""}
     ${t.line ? `<div>&ldquo;${esc(t.line)}&rdquo;</div>` : `<div class="m">(no phrase)</div>`}
     <div class="r" style="margin-top:3px"><span class="sw" style="cursor:default;width:44px;height:16px;background:${hsl(palette[st.color])}"></span>${st.note ? `<span class="chip">${cap(st.note)}</span>` : ""}<span class="m">${esc(t.extra.join(" · "))}</span></div></div>`;
 }
@@ -144,13 +170,21 @@ function payoffScreen(l) {
   $("#lapno").textContent = `Lap ${l.lap}`;
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
   el.innerHTML = `<div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
-    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.gradient.map((c) => `<i style="flex:1;height:100%;background:${hsl(palette[c])}"></i>`).join("")}</div><div class="m">${l.gradient.length} mood colors, in the order the baton moved</div>
+    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.gradient.map((c) => `<i style="flex:1;height:100%;background:${hsl(palette[c])}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
+    <div class="m" style="margin-top:2px">24 mood colors with the sky above each one, in the order the baton moved</div>
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
-    <div class="m" style="margin-top:6px">Sky along the lap: ${Object.entries(l.sky).map(([k, v]) => `${v} ${(SKY[k] || k).toLowerCase()}`).join(" &middot; ") || "none"}</div></div>
+    </div>
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
-  $("#tune").onclick = () => l.tune.forEach((n, i) => setTimeout(() => tone(n), i * 250));
+  const tb = $("#tune"); let playing = false;
+  const idle = () => { playing = false; tb.textContent = "Play the tune"; };
+  tb.onclick = () => {                                              // a second click stops it
+    if (playing) { stopSound(); return idle(); }
+    stopSound(); playing = true; tb.textContent = "Stop the tune";
+    l.tune.forEach((n, i) => tone(n, i * 0.25, 0.4));
+    tuneTimer = setTimeout(idle, l.tune.length * 250 + 300);
+  };
   const more = $("#more"); if (more) more.onclick = () => { $("#sl").innerHTML = shown.map((x) => strand(x, x.mine)).join(""); more.remove(); };
 }
 
@@ -271,11 +305,11 @@ function fixture(which, scn) {
     if (scn === "none") return { error: "none" };
     seed = 11; const sparse = scn === "sparse", stamps = [];
     for (let i = 0; i < 24; i++) {
-      if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, mine: false, hash: "0".repeat(64) }); continue; }
+      if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, t: null, opensAt: Date.now() - 86400000 + i * 3600000, mine: false, hash: "0".repeat(64) }); continue; }
       const bot = i % 4 === 1;
       stamps.push({ band: i, label: bandInfo(i).label, kind: "stamp", bot, color: rnd(12), note: rnd(9) ? ["resolve", "tension"][rnd(2)] : null,
         phrase: rnd(4) ? rnd(lists.phrase.length || 1) : null, feeling: rnd(3) ? rnd(lists.feeling.length || 1) : null, gesture: rnd(3) ? rnd(lists.gesture.length || 1) : null,
-        signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: ["clear", "cloud", "rain", "fog", "snow"][rnd(5)], mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
+        signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: bot ? "unknown" : ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: Math.floor(Date.now() / 1000) - 86400 + i * 3600 + rnd(7200), opensAt: Date.now() - 86400000 + i * 3600000, mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }
     const items = stamps, st = items.filter((x) => x.kind === "stamp");
     return { lap: 117, held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),

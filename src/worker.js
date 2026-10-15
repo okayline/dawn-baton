@@ -136,7 +136,7 @@ const parse = (row) => ({ ...JSON.parse(row.record), id: row.id, hash: row.hash 
 const view = (r, mineId = null) => ({
   band: r.band, label: B.bandLabel(r.band), kind: r.kind, bot: !!r.bot,
   color: r.color ?? null, note: r.note ?? null, phrase: r.phrase ?? null, feeling: r.feeling ?? null,
-  gesture: r.gesture ?? null, signoff: r.signoff ?? null, sky: r.sky ?? null, mine: mineId != null && r.player === mineId,
+  gesture: r.gesture ?? null, signoff: r.signoff ?? null, sky: r.sky ?? null, t: r.t ?? null, mine: mineId != null && r.player === mineId,
   hash: r.hash,
 });
 
@@ -218,7 +218,8 @@ async function lapView(ctx) {
   const n = ctx.url.searchParams.get("n") ? Number(ctx.url.searchParams.get("n")) : last;
   if (!Number.isInteger(n) || n < 1 || n > last) throw new Oops("That lap hasn't finished yet.", 404);
   const rows = await stampsOf(ctx, n);
-  const items = rows.map((r) => view(r, me && me.id));
+  // t = when the stamp was sealed, in seconds (for a bot's stamp: when its band's window closed); opensAt = when that band's window opened
+  const items = rows.map((r) => ({ ...view(r, me && me.id), opensAt: B.opensAt(launch, n, r.band) }));
   // names are looked up now, not sealed: the ledger only ever holds player ids
   const ids = [...new Set(rows.filter((r) => r.kind === "stamp" && r.player != null).map((r) => r.player))];
   if (ids.length) {

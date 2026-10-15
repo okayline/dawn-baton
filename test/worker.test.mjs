@@ -318,3 +318,19 @@ test("today reports the version, and CHANGELOG.md's newest entry is that version
   const log = readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
   assert.equal(/^## v(\S+)/m.exec(log)[1], VERSION);
 });
+
+// ---------- strand details ----------
+
+test("a closed lap's stamps carry their exact time and when their window opened", async () => {
+  const env = makeEnv({ BOTS: "1" }); const me = browser(env);
+  await me("/api/band", { offset: 0 }); at(12.5);
+  t += 17 * 1000 + 300;                                                   // 12h30m17.3s into the lap
+  await me("/api/stamp", { color: 2 });
+  at(40);
+  const lap = (await me("/api/lap")).data;
+  const mine = lap.stamps.find((s) => s.mine);
+  assert.equal(mine.t, Math.floor((L + 12.5 * B.HOUR + 17300) / 1000));
+  assert.equal(mine.opensAt, L + 12 * B.HOUR);
+  const bot = lap.stamps.find((s) => s.bot && s.band === 3);
+  assert.equal(bot.t, Math.floor((L + 3 * B.HOUR + B.WINDOW_H * B.HOUR) / 1000));   // sealed when its window closed
+});

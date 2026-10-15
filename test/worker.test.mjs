@@ -400,3 +400,18 @@ test("the stand-in cities fall inside their own bands", async () => {
   assert.equal(BAND_CITIES.length, 24);
   BAND_CITIES.forEach(([name, , lon], i) => assert.equal(bandFromLon(lon), i, name));
 });
+
+// ---------- the last three notes ----------
+
+test("the band after hears the last three notes before it, oldest first, silences included", async () => {
+  const env = makeEnv(); const people = [];
+  for (const off of [5, 4, 3, 2, 1]) { const b = browser(env); await b("/api/band", { offset: off }); people.push(b); }   // bands 7, 8, 9, 10, 11
+  const notes = ["resolve", "tension", null, "resolve"];
+  for (let i = 0; i < 4; i++) { at(7 + i + 0.5); await people[i]("/api/stamp", { note: notes[i] }); }
+  at(11.5);
+  const d = (await people[4]("/api/today")).data;
+  assert.deepEqual(d.heard, ["tension", null, "resolve"]);                     // bands 8, 9, 10: only the last three
+  assert.equal(d.prev.band, 10);
+  const first = browser(env); await first("/api/band", { offset: 12 }); at(0.5);
+  assert.deepEqual((await first("/api/today")).data.heard, []);                 // nothing before the first band
+});

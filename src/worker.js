@@ -151,7 +151,7 @@ async function today(ctx) {
   const { launch, t } = ctx;
   const place = coarsePlace(ctx.env, ctx.req);
   const out = { version: VERSION, now: t, launch, lap: B.currentLap(launch, t), band: null, window: null, stamped: false, prev: null, sky: null,
-    palette: B.COLORS, notes: B.NOTES, lists: B.LISTS, sun: null, lastClosedLap: B.lastClosedLap(launch, t) };
+    palette: B.COLORS, notes: B.NOTES, lists: B.LISTS, sun: null, heard: [], lastClosedLap: B.lastClosedLap(launch, t) };
   if (place) out.sun = sunReport(place.lat, place.lon, t);
   if (!me || me.band == null) return out;
   out.band = { index: me.band, offset: B.offsetOf(me.band), label: B.bandLabel(me.band) };
@@ -161,8 +161,9 @@ async function today(ctx) {
     const mine = await ctx.db.prepare("SELECT 1 FROM ledger WHERE lap = ? AND player_id = ? AND kind = 'stamp'").bind(w.lap, me.id).first();
     out.stamped = !!mine;
     // the one line before yours: the nearest earlier band's stamp (skipping unheld bands)
-    const prev = (await stampsOf(ctx, w.lap)).filter((r) => r.kind === "stamp" && r.band < me.band).sort((a, b) => b.band - a.band)[0];
-    if (prev) out.prev = view(prev);
+    const before = (await stampsOf(ctx, w.lap)).filter((r) => r.kind === "stamp" && r.band < me.band).sort((a, b) => a.band - b.band);
+    if (before.length) out.prev = view(before[before.length - 1]);
+    out.heard = before.slice(-3).map((r) => r.note ?? null);       // the last three notes before you, oldest first (null = silence)
     if (!out.stamped) out.sky = await skyFor(ctx.env, ctx.req);
   }
   return out;

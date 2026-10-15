@@ -92,7 +92,17 @@ function sunLine(sun) {
     + (sun.event ? `<div style="color:var(--gold);margin-top:2px"><b>${cap(sun.event)} today.</b></div>` : "");
 }
 
-const SLOTS = [["phrase", "Reply phrase"], ["feeling", "Feeling"], ["gesture", "Gesture"], ["signoff", "Sign-off"]];
+// Each slot asks a small question (the same for everyone, every day) so a choice has some context.
+const ASK = {
+  color: ["What color is your morning?", "Pick the one that fits, or skip it."],
+  note: ["Does the tune settle, or lean?", "Press one to hear it. Resolve settles the tune, tension leans.", ],
+  phrase: ["Answer the line above.", "A short reply to what the last person said."],
+  feeling: ["How's your morning?", "How you are right now."],
+  gesture: ["What do you do as you pass it on?", "A small thing, done as you hand it west."],
+  signoff: ["How do you sign off?", "Your last words before the baton moves on."],
+};
+const askHead = (k, first) => { const [q, hint] = ASK[k]; return `<div style="margin-top:4px"><b>${k === "phrase" && first ? "Start the strand." : q}</b></div><div class="m">${k === "phrase" && first ? "You're first this lap: any line will do." : hint}</div>`; };
+const SLOTS = [["phrase"], ["feeling"], ["gesture"], ["signoff"]];
 const words = (st) => ({
   line: st.phrase != null ? lists.phrase[st.phrase] : null,
   extra: [st.feeling != null ? lists.feeling[st.feeling] : null, st.gesture != null ? lists.gesture[st.gesture] : null, st.signoff != null ? lists.signoff[st.signoff] : null].filter(Boolean),
@@ -116,11 +126,11 @@ function catchScreen(d) {
       h += (t.line ? `<div style="font-size:16px">&ldquo;${esc(t.line)}&rdquo;</div>` : "")
         + (t.extra.length ? `<div class="r" style="margin-top:4px">${t.extra.map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div>` : "")
         + `<div class="r" style="margin-top:8px"><span class="sw" style="cursor:default;background:${hsl(palette[d.prev.color])}"></span><span class="m">their mood</span><span class="m">their sky: ${SKY[d.prev.sky] || "?"}</span></div>
-           <div class="r" style="margin-top:8px"><button id="hear">Play last note</button><span class="m">they left: ${d.prev.note || "silence"}</span></div>`;
+           <div class="r" style="margin-top:8px"><button id="hear">${(d.heard || []).length > 1 ? `Play the last ${d.heard.length} notes` : "Play the last note"}</button><span style="display:flex;gap:2px;align-items:center">${(d.heard || []).map((n) => noteIcon({ note: n }, 18)).join("")}</span><span class="m">oldest to newest</span></div>`;
     } else h += `<div class="m">Nobody has stamped yet this lap. You're first.</div>`;
-    h += `</div><div class="p"><p class="h">Your stamp</p><div class="m">Mood color</div><div class="r" style="gap:4px;margin:4px 0 10px">${palette.map((c, i) => `<button class="sw" data-k="color" data-v="${i}" title="${c.name}" style="background:${hsl(c)}"></button>`).join("")}</div>
-      <div class="m">Note</div><div class="r slot">${d.notes.map((n) => `<button class="chip" data-k="note" data-v="${n}">${cap(n)}</button>`).join("")}</div>
-      ${SLOTS.map(([k, label]) => `<div class="m">${label}</div><div class="r slot">${(lists[k] || []).map((t, i) => `<button class="chip" data-k="${k}" data-v="${i}">${esc(t)}</button>`).join("")}</div>`).join("")}</div>
+    h += `</div><div class="p"><p class="h">Your stamp</p>${askHead("color")}<div class="r" style="gap:4px;margin:4px 0 10px">${palette.map((c, i) => `<button class="sw" data-k="color" data-v="${i}" title="${c.name}" style="background:${hsl(c)}"></button>`).join("")}</div>
+      ${askHead("note")}<div class="r slot">${d.notes.map((n) => `<button class="chip" data-k="note" data-v="${n}">${cap(n)}</button>`).join("")}</div>
+      ${SLOTS.map(([k]) => `${askHead(k, !d.prev)}<div class="r slot">${(lists[k] || []).map((t, i) => `<button class="chip" data-k="${k}" data-v="${i}">${esc(t)}</button>`).join("")}</div>`).join("")}</div>
       <button class="go" id="pass">Pass the baton west</button><div class="m">Every slot is optional. Your stamp seals when you pass it.</div><div class="m" id="msg"></div>`;
   }
   el.innerHTML = h; wireBand(); pick = {};
@@ -130,7 +140,17 @@ function catchScreen(d) {
     if (k === "note" && pick[k]) { stopSound(); tone(pick[k]); }          // hear the note you chose
     el.querySelectorAll(`[data-k="${k}"]`).forEach((x) => x.classList.toggle("on", pick[k] === (k === "note" ? x.dataset.v : +x.dataset.v)));
   });
-  const hear = $("#hear"); if (hear) hear.onclick = () => { stopSound(); tone(d.prev && d.prev.note); };
+  const hear = $("#hear"); if (hear) {
+    const label = hear.textContent; let on = false;
+    const done = () => { on = false; hear.textContent = label; };
+    hear.onclick = () => {                                           // slow, one note every 0.9 s; a silence is a rest; a second click stops
+      if (on) { stopSound(); return done(); }
+      stopSound(); on = true; hear.textContent = "Stop";
+      const notes = d.heard && d.heard.length ? d.heard : [d.prev && d.prev.note];
+      notes.forEach((n, i) => tone(n, i * 0.9, 0.8));
+      tuneTimer = setTimeout(done, notes.length * 900 + 300);
+    };
+  }
   const pass = $("#pass"); if (pass) pass.onclick = async () => { pass.disabled = true; const r = await api("stamp", pick); if (r.error) { $("#msg").textContent = r.error; pass.disabled = false; } else load("catch"); };
 }
 
@@ -329,11 +349,11 @@ function fixture(which, scn) {
     const sun = { rise: at(6, 12), set: at(17, 36), length: 11 * H + 24 * 60000, polar: null, delta: -130000, event: null };
     const base = { now, lap: 118, palette, notes: ["resolve", "tension"], lists, sun, lastClosedLap: 117, band: bandInfo(3), stamped: false, sky: "rain",
       window: { lap: 118, open: true, opensAt: now - H / 2, closesAt: now + 1.5 * H },
-      prev: { band: 2, label: bandInfo(2).label, color: 6, note: "tension", sky: "clear", phrase: 3, feeling: 1, gesture: 6, signoff: 2 } };
+      prev: { band: 2, label: bandInfo(2).label, color: 6, note: "tension", sky: "clear", phrase: 3, feeling: 1, gesture: 6, signoff: 2 }, heard: ["resolve", null, "tension"] };
     return {
       nobands: { ...base, band: null, window: null, prev: null, sky: null },
       waiting: { ...base, window: { lap: 118, open: false, opensAt: now + 5 * H, closesAt: now + 7 * H }, prev: null, sky: null },
-      open: base, first: { ...base, prev: null }, stamped: { ...base, stamped: true, prev: null, sky: null },
+      open: base, first: { ...base, prev: null, heard: [] }, stamped: { ...base, stamped: true, prev: null, sky: null },
       equinox: { ...base, sun: { ...sun, event: "equinox", delta: 12000 } },
       polar: { ...base, sun: { rise: null, set: null, length: 0, polar: "night", delta: null, event: null } },
     }[scn];

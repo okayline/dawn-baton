@@ -80,9 +80,7 @@ test("the next band sees only the line before, and nobody else sees contents unt
   at(9.5); await east("/api/stamp", { color: 4, note: "resolve" });
   at(10.5);
   const w = (await west("/api/today")).data;
-  assert.equal(w.prev.band, 9);
-  assert.equal(w.prev.color, 4);
-  assert.equal(w.prev.note, "resolve");
+  assert.deepEqual(w.prev, { color: 4, note: "resolve" });                  // only a color and a tune
   // a player outside their window sees nothing of it, and the ledger hides contents of an open lap
   const n = (await nosy("/api/today")).data;
   assert.equal(n.prev, null);
@@ -224,10 +222,11 @@ test("a stamp holds a phrase, feeling, gesture and sign-off, and the next band r
   assert.equal((await east("/api/stamp", { color: 4, note: "resolve", phrase: 3, feeling: 1, gesture: 6, signoff: 2 })).status, 200);
   at(10.5);
   const prev = (await west("/api/today")).data.prev;
-  assert.deepEqual([prev.phrase, prev.feeling, prev.gesture, prev.signoff], [3, 1, 6, 2]);
+  assert.deepEqual(prev, { color: 4, note: "resolve" });                     // phrase, feeling, gesture, sign-off stay hidden...
+  assert.ok(!JSON.stringify((await west("/api/today")).data).includes('"signoff":2'));
   at(30);
   const lap = (await west("/api/lap")).data;
-  assert.equal(lap.stamps.find((s) => s.band === 9).signoff, 2);
+  assert.equal(lap.stamps.find((s) => s.band === 9).signoff, 2);            // ...until the lap closes
 });
 
 test("slot indexes outside the lists are refused", async () => {
@@ -411,7 +410,7 @@ test("the band after hears the last three notes before it, oldest first, silence
   at(11.5);
   const d = (await people[4]("/api/today")).data;
   assert.deepEqual(d.heard, ["tension", null, "resolve"]);                     // bands 8, 9, 10: only the last three
-  assert.equal(d.prev.band, 10);
+  assert.equal(d.prev.note, "resolve");                                     // band 10's note
   const first = browser(env); await first("/api/band", { offset: 12 }); at(0.5);
   assert.deepEqual((await first("/api/today")).data.heard, []);                 // nothing before the first band
 });

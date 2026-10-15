@@ -153,8 +153,14 @@ const ICON = {
   unknown: '<circle cx="8" cy="8" r="1.4" fill="#6c6cff"/>',
 };
 // A cell with no mood color of its own: a very light pastel for the weather there. Real colors stay full strength.
-const PASTEL = { clear: "hsl(50,90%,88%)", cloud: "hsl(215,25%,86%)", fog: "hsl(200,10%,84%)", drizzle: "hsl(190,55%,86%)", rain: "hsl(210,70%,84%)", snow: "hsl(255,60%,95%)", storm: "hsl(270,45%,84%)" };
-const cellBg = (st) => st.color != null ? hsl(palette[st.color]) : PASTEL[st.fillSky] || "hsl(240,12%,70%)";
+// A cell with no mood color of its own: a deep, muted tone of the weather there (with a soft top-to-bottom shade),
+// so it reads as "dim" next to the bright mood colors. Real colors stay full strength.
+const DEEP = { clear: [42, 70, 34], cloud: [215, 18, 36], fog: [28, 24, 38], drizzle: [172, 55, 30], rain: [218, 70, 38], snow: [262, 35, 44], storm: [305, 50, 30], unknown: [240, 10, 24] };
+const cellBg = (st) => {
+  if (st.color != null) return hsl(palette[st.color]);
+  const [h, sat, l] = DEEP[st.fillSky] || DEEP.unknown;
+  return `linear-gradient(180deg, hsl(${h},${sat}%,${l + 7}%), hsl(${h},${sat}%,${l - 5}%))`;
+};
 const skyIcon = (st, size = 14) => {
   if (st.kind === "gap" && !ICON[st.fillSky]) return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
   const sky = st.kind === "gap" ? st.fillSky : st.sky;
@@ -166,9 +172,9 @@ const nextWindow = (n) => {
   const day = d.toDateString() === today.toDateString() ? "today" : d.toDateString() === tomorrow.toDateString() ? "tomorrow" : d.toLocaleDateString([], { weekday: "long" });
   return `Your next window is ${day} at ${hm(n.opensAt)}.`;
 };
-// Note symbols: a settled dot for resolve, a jagged line for tension, a hollow ring for silence.
+// Note symbols: a smooth wave for resolve, a jagged line for tension, a hollow ring for silence.
 const NOTE_ICON = {
-  resolve: '<circle cx="8" cy="8" r="4.2" fill="#6be08a"/>',
+  resolve: '<path d="M1.5 8c1.6-4.4 3.2-4.4 4.8 0s3.2 4.4 4.8 0 2.2-3 3.4-2" fill="none" stroke="#9fd0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   tension: '<path d="M1.5 11.5L4.7 4.5 8 11.5l3.3-7 3.2 7" fill="none" stroke="#ff9f5d" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
   silence: '<circle cx="8" cy="8" r="3.6" fill="none" stroke="#8a8aff" stroke-width="1.4"/>',
 };

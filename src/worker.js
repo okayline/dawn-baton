@@ -38,6 +38,10 @@ const ROUTES = {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // one home: the workers.dev address redirects to the real domain
+    if (env.CANONICAL_HOST && url.hostname.endsWith(".workers.dev")) {
+      return Response.redirect(`https://${env.CANONICAL_HOST}${url.pathname}${url.search}`, 301);
+    }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS ? env.ASSETS.fetch(req) : new Response("Not found", { status: 404 });
     try {
       const route = ROUTES[`${req.method} ${url.pathname}`];

@@ -205,3 +205,12 @@ test("passkey options come back with a challenge, for adding and for logging in"
   assert.ok(login.challenge);
   assert.equal((await b("/api/passkey", { action: "login", credential: { id: "nope", response: {} } })).status, 400);
 });
+
+test("the workers.dev address redirects to the canonical domain", async () => {
+  const env = makeEnv({ CANONICAL_HOST: "dawn.example.app" });
+  const res = await worker.fetch(new Request("https://dawn-baton.me.workers.dev/api/today?x=1"), env);
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.get("location"), "https://dawn.example.app/api/today?x=1");
+  const ok = await worker.fetch(new Request("https://dawn.example.app/api/today"), env);
+  assert.equal(ok.status, 200);
+});

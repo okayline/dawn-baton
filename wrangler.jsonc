@@ -4,6 +4,8 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "public", "run_worker_first": ["/api/*"] },
+  // the game's home. The old workers.dev address redirects here (see CANONICAL_HOST).
+  "routes": [{ "pattern": "dawn.88x31.app", "custom_domain": true }],
   "d1_databases": [
     // create with: npx wrangler d1 create baton-db   (then paste its id here)
     { "binding": "DB", "database_name": "baton-db", "database_id": "9788d853-6b1b-417d-8eba-4aaccab3e66f" }
@@ -12,7 +14,9 @@
     // When lap 1 starts: the date-line band's 06:00 solar sunrise, i.e. 18:00 UTC the day before.
     "LAUNCH_START": "2026-10-17T18:00:00Z",
     // "1" = bands nobody holds get a bot's stamp; anything else = they seal as "unheld" gaps
-    "BOTS": "1"
+    "BOTS": "1",
+    // requests to any *.workers.dev address are sent here instead (passkeys belong to one address)
+    "CANONICAL_HOST": "dawn.88x31.app"
   }
   // Secret (not in this file): BOT_SECRET, makes the bots' choices. npx wrangler secret put BOT_SECRET
 }

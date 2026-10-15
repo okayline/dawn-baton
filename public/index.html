@@ -153,8 +153,10 @@ const ICON = {
   unknown: '<circle cx="8" cy="8" r="1.4" fill="#6c6cff"/>',
 };
 // A cell with no mood color of its own: a very light pastel for the weather there. Real colors stay full strength.
-const PASTEL = { clear: "hsl(50,90%,88%)", cloud: "hsl(215,25%,86%)", fog: "hsl(200,10%,84%)", drizzle: "hsl(190,55%,86%)", rain: "hsl(210,70%,84%)", snow: "hsl(255,60%,95%)", storm: "hsl(270,45%,84%)" };
-const cellColor = (st) => st.color != null ? hsl(palette[st.color]) : PASTEL[st.fillSky] || "hsl(240,12%,70%)";
+const PASTEL = { clear: "hsl(52,100%,78%)", cloud: "hsl(0,0%,76%)", fog: "hsl(30,55%,72%)", drizzle: "hsl(160,60%,76%)", rain: "hsl(212,90%,78%)", snow: "hsl(290,85%,95%)", storm: "hsl(340,75%,80%)" };
+// light diagonal stripes on top mark a cell as "no color of its own", so it never reads as a real (pale) mood color
+const STRIPES = "repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, rgba(255,255,255,0) 2px 5px)";
+const cellBg = (st) => st.color != null ? hsl(palette[st.color]) : `${STRIPES}, ${PASTEL[st.fillSky] || "hsl(240,15%,58%)"}`;
 const skyIcon = (st, size = 14) => {
   if (st.kind === "gap" && !ICON[st.fillSky]) return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
   const sky = st.kind === "gap" ? st.fillSky : st.sky;
@@ -166,6 +168,14 @@ const nextWindow = (n) => {
   const day = d.toDateString() === today.toDateString() ? "today" : d.toDateString() === tomorrow.toDateString() ? "tomorrow" : d.toLocaleDateString([], { weekday: "long" });
   return `Your next window is ${day} at ${hm(n.opensAt)}.`;
 };
+// Note symbols: a settled dot for resolve, a jagged line for tension, a hollow ring for silence.
+const NOTE_ICON = {
+  resolve: '<circle cx="8" cy="8" r="4.2" fill="#6be08a"/>',
+  tension: '<path d="M1.5 11.5L4.7 4.5 8 11.5l3.3-7 3.2 7" fill="none" stroke="#ff9f5d" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
+  silence: '<circle cx="8" cy="8" r="3.6" fill="none" stroke="#8a8aff" stroke-width="1.4"/>',
+};
+const noteIcon = (st, size = 14) => st.kind === "gap" ? `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M5.5 8h5" stroke="#3a3a9a" stroke-width="1.2"/></svg>`
+  : `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${NOTE_ICON[st.note || "silence"]}</svg>`;
 const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 const inWindow = (st) => { const m = Math.max(0, Math.round((st.t * 1000 - st.opensAt) / 60000)); return m < 1 ? "as the window opened" : `${m} min into the window`; };
 function strand(st, me) {
@@ -189,9 +199,10 @@ function payoffScreen(l) {
     <div style="text-align:center"><b>Lap ${l.lap}</b><div class="m">${new Date(l.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div></div>
     <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
   el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
-    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i style="flex:1;height:100%;background:${cellColor(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
+    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i style="flex:1;height:100%;background:${cellBg(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
     
-    <div class="r" style="margin-top:6px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
+    <div class="r" style="gap:0;flex-wrap:nowrap;margin-top:2px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : st.note || "silence"}" style="flex:1;display:flex;justify-content:center">${noteIcon(st)}</span>`).join("")}</div>
+    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} resolve</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} tension</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
     </div>
     ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}

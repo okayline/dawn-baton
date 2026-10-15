@@ -83,11 +83,11 @@ export function skyFromWmo(code) {
 // Picked-from-list slots. A stamp stores the index, never the text, so the same stamp can be shown in any
 // language later. Append new entries to the END of a list (indices are sealed in the ledger forever).
 export const PHRASES = [
-  "Right back at you!", "Morning to you too!", "Hi, hi, hi!", "Same, honestly.",
-  "You made my day.", "Okay that made me smile.", "Sending a warm wave.", "Wait, that is so true.",
-  "Still half asleep, hi.", "Look at you go.", "Keep being you.", "Warm hands, friend.",
-  "Sunshine received.", "Big hug from over here.", "Rooting for you.", "Thanks for the light.",
-  "Let's make it a good one.", "Hope your coffee's hot.", "Onwards!!", "Keeping it short.",
+  "Morning to you too!", "Right back at you!", "Still half asleep, hi.", "Hi, hi, hi!",
+  "Hope your coffee's hot.", "Same, honestly.", "Sunshine received.", "Okay that made me smile.",
+  "Thanks for the light.", "Sending a warm wave.", "It's morning already??", "Look at you go.",
+  "Rise and shine, you.", "Keep being you.", "Hello from the sunrise.", "Big hug from over here.",
+  "Fresh day, let's go.", "Rooting for you.", "Right back at you, early bird.", "Onwards!!",
 ];
 export const FEELINGS = [
   "sleepy", "hopeful", "restless", "calm",
@@ -96,9 +96,9 @@ export const FEELINGS = [
   "thankful", "a bit off",
 ];
 export const GESTURES = [
-  "mid-yawn", "stretching like a cat", "talking to a plant", "talking to my coffee",
-  "waving at the sun", "rehearsing a speech", "humming off-key", "doing a tiny dance",
-  "staring out the window", "pretending to be productive", "eating cereal standing up", "smiling at nothing",
+  "mid-yawn", "humming off-key", "stretching like a cat", "doing a tiny dance",
+  "talking to my coffee", "smiling at nothing", "waving at the sun", "talking to a plant",
+  "eating cereal standing up", "rehearsing a speech", "squinting at the sunrise", "pretending to be productive",
 ];
 export const SIGNOFFS = [
   "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",

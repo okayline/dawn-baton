@@ -166,7 +166,9 @@ async function today(ctx) {
     if (before.length) {
       const last = before[before.length - 1];
       out.prev = { color: last.color ?? null, note: last.note ?? null, phrase: last.phrase ?? null, feeling: last.feeling ?? null,
-        gesture: last.gesture ?? null, signoff: last.signoff ?? null, sky: last.sky ?? null };
+        gesture: last.gesture ?? null, signoff: last.signoff ?? null, sky: last.sky ?? null,
+        offset: B.offsetOf(last.band),                                  // just the band's number, no label
+        ago: last.t == null ? null : (t - last.t < 15 * 60e3 ? "just now" : t - last.t < 3 * 3600e3 ? "a while ago" : "hours ago") };  // loose, never the exact time
     }
     out.heard = before.slice(-3).map((r) => r.note ?? null);       // the last three notes before you, oldest first (null = silence)
     if (!out.stamped) out.sky = await skyFor(ctx.env, ctx.req);

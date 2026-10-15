@@ -152,9 +152,13 @@ const ICON = {
   storm: '<path d="M4.5 8h7a2.3 2.3 0 0 0 .2-4.6A3.2 3.2 0 0 0 5.2 3.1 2.7 2.7 0 0 0 4.5 8z" fill="#6c6cff"/><path d="M8.6 7.5L6.4 11h1.9l-.8 3.2 3-4.2H8.7z" fill="#ffe066"/>',
   unknown: '<circle cx="8" cy="8" r="1.4" fill="#6c6cff"/>',
 };
+// A cell with no mood color of its own: a very light pastel for the weather there. Real colors stay full strength.
+const PASTEL = { clear: "hsl(50,90%,88%)", cloud: "hsl(215,25%,86%)", fog: "hsl(200,10%,84%)", drizzle: "hsl(190,55%,86%)", rain: "hsl(210,70%,84%)", snow: "hsl(255,60%,95%)", storm: "hsl(270,45%,84%)" };
+const cellColor = (st) => st.color != null ? hsl(palette[st.color]) : PASTEL[st.fillSky] || "hsl(240,12%,70%)";
 const skyIcon = (st, size = 14) => {
-  if (st.kind === "gap") return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
-  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${ICON[st.sky] || ICON.unknown}</svg>`;
+  if (st.kind === "gap" && !ICON[st.fillSky]) return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M4 8h8" stroke="#3a3a9a" stroke-width="1.2" stroke-dasharray="1.5 1.5"/></svg>`;
+  const sky = st.kind === "gap" ? st.fillSky : st.sky;
+  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"${st.kind === "gap" ? ' opacity=".55"' : ""}>${ICON[sky] || ICON.unknown}</svg>`;
 };
 const nextWindow = (n) => {
   if (n.open) return `Your window is open now, until ${hm(n.closesAt)}.`;
@@ -185,9 +189,9 @@ function payoffScreen(l) {
     <div style="text-align:center"><b>Lap ${l.lap}</b><div class="m">${new Date(l.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div></div>
     <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
   el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r" style="gap:14px"><span><b>${l.held}</b> held</span><span><b>${l.bots}</b> bots</span><span><b>${l.unheld}</b> unheld</span></div>
-    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.gradient.map((c) => `<i style="flex:1;height:100%;background:${hsl(palette[c])}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
-    <div class="m" style="margin-top:2px">24 mood colors with the sky above each one, in the order the baton moved</div>
-    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
+    <div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i style="flex:1;height:100%;background:${cellColor(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
+    
+    <div class="r" style="margin-top:6px"><button id="tune">Play the tune</button><span class="m">${l.tally.resolve} resolve &middot; ${l.tally.tension} tension &middot; ${l.tally.silent} silent</span></div>
     </div>
     ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
@@ -323,9 +327,10 @@ function fixture(which, scn) {
     if (scn === "none") return { error: "none" };
     const lapNo = lapN || 117; seed = 11 + lapNo; const sparse = scn === "sparse", stamps = [];
     for (let i = 0; i < 24; i++) {
-      if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, t: null, opensAt: Date.now() - 86400000 + i * 3600000, mine: false, hash: "0".repeat(64) }); continue; }
+      if (sparse && i % 3 !== 0) { stamps.push({ band: i, label: bandInfo(i).label, kind: "gap", bot: false, color: null, note: null, phrase: null, feeling: null, gesture: null, signoff: null, sky: null, fillSky: ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: null, opensAt: Date.now() - 86400000 + i * 3600000, mine: false, hash: "0".repeat(64) }); continue; }
       const bot = i % 4 === 1;
-      stamps.push({ band: i, label: bandInfo(i).label, kind: "stamp", bot, color: rnd(12), note: rnd(9) ? ["resolve", "tension"][rnd(2)] : null,
+      const blank = i % 9 === 5;
+      stamps.push({ band: i, label: bandInfo(i).label, kind: "stamp", bot, color: blank ? (rnd(12), null) : rnd(12), fillSky: blank ? "rain" : undefined, note: rnd(9) ? ["resolve", "tension"][rnd(2)] : null,
         phrase: rnd(4) ? rnd(lists.phrase.length || 1) : null, feeling: rnd(3) ? rnd(lists.feeling.length || 1) : null, gesture: rnd(3) ? rnd(lists.gesture.length || 1) : null,
         signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: bot ? "unknown" : ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: Math.floor(Date.now() / 1000) - 86400 + i * 3600 + rnd(7200), opensAt: Date.now() - 86400000 + i * 3600000, mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }

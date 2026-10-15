@@ -364,3 +364,39 @@ test("a closed lap tells a player who missed it when their band is next up", asy
   assert.deepEqual([lap.next.open, lap.next.opensAt], [false, L + 60 * B.HOUR]);
   assert.equal((await stranger("/api/lap")).data.next, null);                // no player, no band: nothing to say
 });
+
+// ---------- gaps tinted by the weather in the band ----------
+
+test("a cell with no color is tinted by the stamper's sky, or by looked-up weather for the band, which is kept", async () => {
+  let lookups = 0;
+  const env = makeEnv({ BAND_WEATHER: async (wanted) => { lookups++; return Object.fromEntries(wanted.map((w) => [w.band, w.band % 2 ? "snow" : "fog"])); } });
+  const me = browser(env);
+  await me("/api/band", { offset: 0 }); at(12.5);
+  await me("/api/stamp", { note: "resolve" });                              // stamped, but no color: its own sky is rain
+  at(40);
+  const lap = (await me("/api/lap")).data;
+  assert.equal(lap.stamps.find((s) => s.band === 12).fillSky, "rain");     // the player's own sky
+  assert.equal(lap.stamps.find((s) => s.band === 3).fillSky, "snow");      // nobody held it: weather for that band
+  assert.equal(lap.stamps.find((s) => s.band === 4).fillSky, "fog");
+  assert.equal(lookups, 1);
+  await me("/api/lap");
+  assert.equal(lookups, 1, "kept after the first look-up, not asked again");
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM band_sky").get().n, 23);
+  assert.ok(!env.DB.raw.prepare("SELECT record FROM ledger").all().some((r) => /snow|fog/.test(r.record)));
+});
+
+test("a failed weather look-up leaves the cell untinted and is tried again next time", async () => {
+  let ok = false, calls = 0;
+  const env = makeEnv({ BAND_WEATHER: async (wanted) => { calls++; return ok ? Object.fromEntries(wanted.map((w) => [w.band, "clear"])) : {}; } });
+  const me = browser(env); at(40);
+  assert.equal((await me("/api/lap")).data.stamps.find((s) => s.band === 5).fillSky, null);
+  ok = true;
+  assert.equal((await me("/api/lap")).data.stamps.find((s) => s.band === 5).fillSky, "clear");
+  assert.equal(calls, 2);
+});
+
+test("the stand-in cities fall inside their own bands", async () => {
+  const { BAND_CITIES, bandFromLon } = await import("../engine/baton.js");
+  assert.equal(BAND_CITIES.length, 24);
+  BAND_CITIES.forEach(([name, , lon], i) => assert.equal(bandFromLon(lon), i, name));
+});

@@ -86,3 +86,11 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS players_name ON players (name_a, name_b, name_tag) WHERE name_a IS NOT NULL;
+
+-- the weather "somewhere in a band" for finished laps, used to colour gaps (never sealed in the ledger)
+CREATE TABLE IF NOT EXISTS band_sky (
+  lap   INTEGER NOT NULL,
+  band  INTEGER NOT NULL,
+  sky   TEXT NOT NULL,
+  PRIMARY KEY (lap, band)
+);

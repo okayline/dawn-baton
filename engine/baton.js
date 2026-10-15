@@ -150,3 +150,15 @@ export function nameText(a, b) {
 }
 // First word must be an adjective and the second a noun for now (so every name reads well).
 export const checkName = (a, b) => nameWord(a) && nameWord(b) && /^adj:/.test(a) && /^noun:/.test(b);
+
+// ---------- weather for bands nobody held ----------
+// A stand-in city for each band (index 0 = solar UTC+12 ... 23 = UTC-11), each one inside its band's 15 degrees of
+// longitude, used only to colour a gap in a finished lap with "the weather somewhere in that band".
+export const BAND_CITIES = [
+  ["Auckland", -36.85, 174.76], ["Noumea", -22.27, 166.45], ["Sydney", -33.87, 151.21], ["Tokyo", 35.68, 139.69],
+  ["Beijing", 39.9, 116.4], ["Bangkok", 13.75, 100.5], ["Dhaka", 23.8, 90.4], ["Tashkent", 41.3, 69.24],
+  ["Dubai", 25.2, 55.27], ["Baghdad", 33.31, 44.36], ["Cairo", 30.04, 31.24], ["Berlin", 52.52, 13.4],
+  ["London", 51.5, -0.13], ["Reykjavik", 64.15, -21.94], ["Fernando de Noronha", -3.85, -32.42], ["Sao Paulo", -23.55, -46.63],
+  ["Manaus", -3.12, -60.02], ["Bogota", 4.71, -74.07], ["Chicago", 41.88, -87.63], ["Denver", 39.74, -104.99],
+  ["Los Angeles", 34.05, -118.24], ["Whitehorse", 60.72, -135.05], ["Papeete", -17.54, -149.57], ["Pago Pago", -14.28, -170.7],
+];

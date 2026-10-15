@@ -25,3 +25,32 @@ export async function skyFor(env, req) {
     return skyFromWmo(data && data.current && data.current.weather_code);
   } catch { return "unknown"; }
 }
+
+// Sky words for several bands at once, one request: `wanted` = [{ band, at }] where `at` is a UTC ms moment inside
+// that band's window. Returns { [band]: sky } for the bands the service answered for (a failed lookup is left out,
+// so it is tried again next time). env.BAND_WEATHER lets tests plug in. Nothing here is sealed in the ledger.
+import { BAND_CITIES } from "../engine/baton.js";
+
+export async function bandSkies(env, wanted) {
+  if (!wanted.length) return {};
+  if (env.BAND_WEATHER) return await env.BAND_WEATHER(wanted);
+  try {
+    const cities = wanted.map((w) => BAND_CITIES[w.band]);
+    const oldest = Math.min(...wanted.map((w) => w.at));
+    const pastDays = Math.min(92, Math.max(1, Math.ceil((Date.now() - oldest) / 86400000) + 1));
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${cities.map((c) => c[1]).join(",")}&longitude=${cities.map((c) => c[2]).join(",")}`
+      + `&hourly=weather_code&past_days=${pastDays}&forecast_days=1&timezone=UTC`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return {};
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : [data];
+    const out = {};
+    wanted.forEach((w, i) => {
+      const h = list[i] && list[i].hourly;
+      if (!h) return;
+      const hour = new Date(Math.floor(w.at / 3600000) * 3600000).toISOString().slice(0, 13) + ":00";
+      const at = h.time.indexOf(hour);
+      out[w.band] = at >= 0 ? skyFromWmo(h.weather_code[at]) : "unknown";
+    });
+    return out;
+  } catch { return {}; }
+}

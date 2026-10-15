@@ -17,7 +17,7 @@
 import * as B from "../engine/baton.js";
 import { VERSION } from "../engine/version.js";
 import { seal, lapRecord, stampRecord, gapRecord, sha256, verifyChain, GENESIS } from "./ledger.js";
-import { skyFor, coarsePlace } from "./weather.js";
+import { skyFor, coarsePlace, bandSkies } from "./weather.js";
 import { sunReport } from "../engine/sun.js";
 import { MAX_CODES, newSaveCode, hashCode, newSession, newToken, rateLimit } from "./saves.js";
 import { registerOptions, verifyRegistration, loginOptions, verifyLogin } from "./passkeys.js";
@@ -220,6 +220,23 @@ async function lapView(ctx) {
   const rows = await stampsOf(ctx, n);
   // t = when the stamp was sealed, in seconds (for a bot's stamp: when its band's window closed); opensAt = when that band's window opened
   const items = rows.map((r) => ({ ...view(r, me && me.id), opensAt: B.opensAt(launch, n, r.band) }));
+  // a cell with no color of its own (nobody held the band, or they left the color blank) is tinted by the sky:
+  // the stamper's own if we have it, else the weather in a stand-in city for that band, looked up once and kept
+  const gaps = items.filter((it) => it.color == null);
+  if (gaps.length) {
+    const need = [];
+    for (const it of gaps) { it.fillSky = it.sky && it.sky !== "unknown" ? it.sky : null; if (!it.fillSky) need.push(it); }
+    if (need.length) {
+      const have = new Map((await ctx.db.prepare("SELECT band, sky FROM band_sky WHERE lap = ?").bind(n).all()).results.map((r) => [r.band, r.sky]));
+      const wanted = need.filter((it) => !have.has(it.band)).map((it) => ({ band: it.band, at: B.opensAt(launch, n, it.band) + B.HOUR }));
+      const got = await bandSkies(ctx.env, wanted);
+      for (const [band, sky] of Object.entries(got)) {
+        have.set(Number(band), sky);
+        await ctx.db.prepare("INSERT OR IGNORE INTO band_sky (lap, band, sky) VALUES (?,?,?)").bind(n, Number(band), sky).run();
+      }
+      for (const it of need) it.fillSky = have.get(it.band) ?? null;
+    }
+  }
   // when this player's band is next up (so a missed lap can say so): skips a window they've already stamped
   let next = null;
   if (me && me.band != null) {

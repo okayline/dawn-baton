@@ -7,10 +7,17 @@
 //   GET  /api/planet         the current lap: every band waiting / open / stamped / unheld (no contents)
 //   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked
 //   GET  /api/ledger?before=&limit=   newest first; contents of unfinished laps are hidden
+//   GET  /api/account        your save codes and passkeys (never the codes themselves)
+//   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
+//   POST /api/load {code}    become the player a save code belongs to on this device (log in)
+//   POST /api/passkey {action: register_options | register | login_options | login | remove}
+//   POST /api/logout         this browser forgets its player (needs a save code or passkey first)
 
 import * as B from "../engine/baton.js";
 import { seal, lapRecord, stampRecord, gapRecord, sha256, verifyChain, GENESIS } from "./ledger.js";
 import { skyFor } from "./weather.js";
+import { MAX_CODES, newSaveCode, hashCode, newSession, newToken, rateLimit } from "./saves.js";
+import { registerOptions, verifyRegistration, loginOptions, verifyLogin } from "./passkeys.js";
 
 const COOKIE = "bb";
 const COOKIE_MAX_AGE = 400 * 86400;
@@ -24,6 +31,8 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
   "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
+  "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
+  "POST /api/passkey": passkey, "POST /api/logout": logout,
 };
 
 export default {
@@ -50,19 +59,30 @@ const clock = (env) => (env.clock ? env.clock() : Date.now());
 const sec = (ms) => Math.floor(ms / 1000);
 
 // ---------- players ----------
+// A player's first device uses players.token_hash; devices loaded later (save code or passkey) each get a
+// row in sessions. Only hashes of tokens are stored.
 
+const readCookie = (req) => { const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)bb=([A-Za-z0-9_-]{20,})/); return m ? m[1] : null; };
+const cookieFor = (token) => `${COOKIE}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
+const CLEAR_COOKIE = `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+
+// The player behind this request's cookie, or null. Never creates one (so crawlers don't make players).
 async function player(ctx, create = false) {
-  const m = /(?:^|;\s*)bb=([^;]+)/.exec(ctx.req.headers.get("cookie") || "");
-  if (m) {
-    const row = await ctx.db.prepare("SELECT * FROM players WHERE token_hash = ?").bind(await sha256(m[1])).first();
-    if (row) return row;
+  const { db } = ctx, token = readCookie(ctx.req), now = sec(ctx.t);
+  if (token) {
+    const h = await sha256(token);
+    let p = await db.prepare("SELECT * FROM players WHERE token_hash = ?").bind(h).first();
+    if (!p) {
+      p = await db.prepare("SELECT p.* FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token_hash = ?").bind(h).first();
+      if (p) await db.prepare("UPDATE sessions SET seen_at = ? WHERE token_hash = ?").bind(now, h).run();
+    }
+    if (p) { await db.prepare("UPDATE players SET seen_at = ? WHERE id = ?").bind(now, p.id).run(); return p; }
   }
   if (!create) return null;
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  const now = sec(ctx.t);
-  const r = await ctx.db.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?,?,?)").bind(await sha256(token), now, now).run();
-  ctx.setCookie = `${COOKIE}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
-  return await ctx.db.prepare("SELECT * FROM players WHERE token_hash = ?").bind(await sha256(token)).first();
+  const fresh = newToken();
+  const row = await db.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?,?,?) RETURNING *").bind(await sha256(fresh), now, now).first();
+  ctx.setCookie = cookieFor(fresh);
+  return row;
 }
 
 // ---------- sealing what time itself decides ----------
@@ -211,6 +231,97 @@ async function ledger(ctx) {
       return r.lap <= last || r.kind === "lap" ? { ...open, record: r.record } : open;
     }),
   };
+}
+
+// ---------- save codes and passkeys ----------
+
+const must = async (ctx, create = false) => { const p = await player(ctx, create); if (!p) throw new Oops("No player here.", 401); return p; };
+const body = async (ctx) => { try { return await ctx.req.json(); } catch { throw new Oops("That request didn't make sense."); } };
+
+async function account(ctx) {
+  const me = await player(ctx);
+  if (!me) return { player: false, codes: [], passkeys: [], devices: 0 };
+  const { db } = ctx;
+  const codes = (await db.prepare("SELECT id, created_at, last_used_at FROM save_codes WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
+  const passkeys = (await db.prepare("SELECT id, label, created_at, last_used_at FROM passkeys WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
+  const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
+  return { player: true, codes, passkeys, devices };
+}
+
+async function codes(ctx) {
+  const b = await body(ctx), { db } = ctx;
+  if (b.action === "new") {
+    const me = await player(ctx, true);
+    const n = (await db.prepare("SELECT COUNT(*) AS n FROM save_codes WHERE player_id = ?").bind(me.id).first()).n;
+    if (n >= MAX_CODES) throw new Oops(`You have ${MAX_CODES} save codes already. Forget one first.`);
+    const code = newSaveCode();
+    await db.prepare("INSERT INTO save_codes (player_id, code_hash, created_at) VALUES (?, ?, ?)").bind(me.id, await hashCode(code), sec(ctx.t)).run();
+    return { code };
+  }
+  if (b.action === "remove") {
+    const me = await must(ctx);
+    const r = await db.prepare("DELETE FROM save_codes WHERE id = ? AND player_id = ?").bind(Number(b.id), me.id).run();
+    if (!r.meta.changes) throw new Oops("No such save code.", 404);
+    return { ok: true };
+  }
+  throw new Oops("Unknown action.");
+}
+
+// Type a save code: this device becomes that player.
+async function loadCode(ctx) {
+  const { env, db } = ctx;
+  if (!(await rateLimit(env, ctx.req, "load", 10, 900))) throw new Oops("Too many tries. Wait 15 minutes and try again.", 429);
+  const code = (await body(ctx)).code;
+  const row = await db.prepare("SELECT c.id, c.player_id FROM save_codes c WHERE c.code_hash = ?").bind(await hashCode(code)).first();
+  if (!row) throw new Oops("That save code didn't work. Check it and try again.", 404);
+  await db.prepare("UPDATE save_codes SET last_used_at = ? WHERE id = ?").bind(sec(ctx.t), row.id).run();
+  ctx.setCookie = cookieFor(await newSession(env, row.player_id));
+  return { ok: true };
+}
+
+async function passkey(ctx) {
+  const b = await body(ctx), { env, req, db } = ctx;
+  try {
+    if (b.action === "login_options" || b.action === "login") {
+      if (!(await rateLimit(env, req, "passkey", 20, 900))) throw new Oops("Too many tries. Wait 15 minutes and try again.", 429);
+      if (b.action === "login_options") return await loginOptions(env, req);
+      const playerId = await verifyLogin(env, req, b.credential);
+      const p = await db.prepare("SELECT id FROM players WHERE id = ?").bind(playerId).first();
+      if (!p) throw new Oops("That player is gone.", 404);
+      ctx.setCookie = cookieFor(await newSession(env, p.id));
+      return { ok: true };
+    }
+    if (b.action === "register_options" || b.action === "register") {
+      const me = await player(ctx, true);
+      if (b.action === "register_options") return await registerOptions(env, req, me);
+      const n = (await db.prepare("SELECT COUNT(*) AS n FROM passkeys WHERE player_id = ?").bind(me.id).first()).n;
+      if (n >= 10) throw new Oops("That's plenty of passkeys! Forget one first.");
+      return await verifyRegistration(env, req, me, b.credential, b.label);
+    }
+    if (b.action === "remove") {
+      const me = await must(ctx);
+      const r = await db.prepare("DELETE FROM passkeys WHERE id = ? AND player_id = ?").bind(Number(b.id), me.id).run();
+      if (!r.meta.changes) throw new Oops("No such passkey.", 404);
+      return { ok: true };
+    }
+    throw new Oops("Unknown action.");
+  } catch (e) {
+    if (e instanceof Oops) throw e;
+    throw new Oops(e.message || "Something went wrong with the passkey.");
+  }
+}
+
+// Log out: this browser forgets its player, but only once there's a save code or passkey to get back in.
+async function logout(ctx) {
+  const me = await player(ctx), { db } = ctx;
+  if (!me) { ctx.setCookie = CLEAR_COOKIE; return { ok: true }; }
+  const ways = (await db.prepare("SELECT (SELECT COUNT(*) FROM save_codes WHERE player_id = ?) + (SELECT COUNT(*) FROM passkeys WHERE player_id = ?) AS n").bind(me.id, me.id).first()).n;
+  if (!ways) throw new Oops("Make a save code or passkey first, or you'd have no way back in.");
+  const h = await sha256(readCookie(ctx.req));
+  const s = await db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(h).run();
+  if (!s.meta.changes) await db.prepare("UPDATE players SET token_hash = ? WHERE id = ? AND token_hash = ?").bind(await sha256(newToken()), me.id, h).run();
+  ctx.setCookie = CLEAR_COOKIE;
+  return { ok: true };
 }
 
 export { verifyChain };

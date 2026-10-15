@@ -25,8 +25,8 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 </style></head><body><main>
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Band Baton</b><span class="m" id="lapno"></span></div>
-<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button></nav>
-<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section>
+<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
+<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -39,7 +39,7 @@ let palette = [], pick = { color: null, note: null };
 
 document.querySelectorAll(".tab").forEach((b) => b.onclick = () => {
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === b));
-  for (const id of ["catch", "payoff", "planet"]) $("#" + id).hidden = id !== b.dataset.t;
+  for (const id of ["catch", "payoff", "planet", "account"]) $("#" + id).hidden = id !== b.dataset.t;
   load(b.dataset.t);
 });
 
@@ -55,12 +55,13 @@ async function load(which) {
   if (which === "catch") return catchScreen(await api("today"));
   if (which === "payoff") return payoffScreen(await api("lap"));
   if (which === "planet") return planetScreen(await api("planet"));
+  if (which === "account") return accountScreen(await api("account"));
 }
 
 function catchScreen(d) {
   palette = d.palette; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
-  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>`; return wireBand(); }
+  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div><div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p><div>${esc(d.band.label)}</div>`;
   if (!w.open) h += `<div class="m">Your window opens ${new Date(w.opensAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} and stays open 2 hours.</div>`;
   else h += `<div class="m">Open until ${hm(w.closesAt)}.</div>` + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
@@ -110,5 +111,57 @@ function planetScreen(p) {
     <div class="p"><p class="h">24 solar bands</p><div class="grid">${p.bands.map((b) => `<div class="cell ${b.status}${b.mine ? " mine" : ""}" title="${b.status}">${b.label.replace("solar UTC", "")}</div>`).join("")}</div>
     <div class="m" style="margin-top:8px">Yellow: open now · blue: stamped · dark: unheld · green outline: you</div></div>`;
 }
-load("catch").then(() => api("today")).catch(() => {});
+
+// ---------- account: save codes and passkeys ----------
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64 = (t) => { t = t.replace(/-/g, "+").replace(/_/g, "/"); return Uint8Array.from(atob(t + "===".slice((t.length + 3) % 4)), (c) => c.charCodeAt(0)); };
+const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+const day = (s) => new Date(s * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
+let newCode = null;
+
+function accountScreen(a) {
+  const el = $("#account"), has = a.codes.length || a.passkeys.length;
+  el.innerHTML = `<div class="p"><p class="h">Your player</p>
+    <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} A save code or passkey lets you play as this player on any browser, so you keep your stamps.</div></div>
+    ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div></div>` : ""}
+    <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p>
+      ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
+      <div style="margin-top:6px"><button id="mkcode">Make a save code</button></div></div>
+    <div class="p"><p class="h">Passkeys (${a.passkeys.length})</p>
+      ${a.passkeys.map((k) => `<div class="r" style="margin-bottom:4px"><span class="m">${esc(k.label || "passkey")} · made ${day(k.created_at)}</span><button data-rm="passkey" data-id="${k.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
+      <div style="margin-top:6px">${pkOk() ? '<button id="mkpk">Add a passkey</button>' : '<span class="m">This browser can\'t do passkeys. A save code works everywhere.</span>'}</div></div>
+    <div class="p"><p class="h">Log in on this device</p>
+      <div class="r"><input id="code" placeholder="K7QM-2XPA-9RTD-HV4C-8NBE" style="font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:4px 6px;flex:1;min-width:180px"><button id="uc">Use code</button></div>
+      ${pkOk() ? '<div style="margin-top:6px"><button id="up">Use a passkey</button></div>' : ""}</div>
+    ${has ? '<button id="out" style="align-self:flex-start">Log out of this browser</button>' : ""}
+    <div class="m" id="amsg"></div>`;
+  const say = (t) => { $("#amsg").textContent = t; };
+  const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
+  const mk = $("#mkcode"); if (mk) mk.onclick = async () => { const r = await api("codes", { action: "new" }); if (r.error) return say(r.error); newCode = r.code; load("account"); };
+  el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => { const r = await api(b.dataset.rm, { action: "remove", id: +b.dataset.id }); if (r.error) say(r.error); else load("account"); });
+  $("#uc").onclick = async () => { const r = await api("load", { code: $("#code").value }); if (r.error) return say(r.error); done("Logged in."); };
+  const out = $("#out"); if (out) out.onclick = async () => { const r = await api("logout", {}); if (r.error) return say(r.error); done("Logged out."); };
+  const mp = $("#mkpk"); if (mp) mp.onclick = async () => {
+    try {
+      say("Waiting for your fingerprint, face or PIN...");
+      const o = await api("passkey", { action: "register_options" }); if (o.error) return say(o.error);
+      const cred = await navigator.credentials.create({ publicKey: { ...o, challenge: unb64(o.challenge), user: { ...o.user, id: unb64(o.user.id) }, excludeCredentials: o.excludeCredentials.map((c) => ({ ...c, id: unb64(c.id) })) } });
+      const r = await api("passkey", { action: "register", label: /Android/.test(navigator.userAgent) ? "Android" : /iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Mac/.test(navigator.userAgent) ? "Mac" : /Windows/.test(navigator.userAgent) ? "Windows PC" : "This device",
+        credential: { id: cred.id, response: { clientDataJSON: b64(cred.response.clientDataJSON), attestationObject: b64(cred.response.attestationObject) } } });
+      if (r.error) return say(r.error);
+      load("account");
+    } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
+  };
+  const up = $("#up"); if (up) up.onclick = async () => {
+    try {
+      say("Waiting for your passkey...");
+      const o = await api("passkey", { action: "login_options" }); if (o.error) return say(o.error);
+      const cred = await navigator.credentials.get({ publicKey: { ...o, challenge: unb64(o.challenge) } });
+      const r = await api("passkey", { action: "login", credential: { id: cred.id, response: { clientDataJSON: b64(cred.response.clientDataJSON), authenticatorData: b64(cred.response.authenticatorData), signature: b64(cred.response.signature) } } });
+      if (r.error) return say(r.error);
+      done("Logged in.");
+    } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
+  };
+}
+load("catch");
 </script></body></html>

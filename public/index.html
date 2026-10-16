@@ -322,9 +322,8 @@ function drawStrip(bands, meBand) {                                // the whole 
   const by = {}; bands.forEach((b) => by[b.band] = b);
   const opens = bands.filter((b) => b.status === "open").map((b) => b.band), lead = opens.length ? Math.max(...opens) : null;
   const dot = (i) => { const st = (by[i] || {}).status, me = i === meBand, bg = st === "open" ? "#ffd656" : st === "stamped" || st === "bot" ? "#4a78c8" : st === "unheld" ? "#22223a" : "transparent",
-    bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9,
-    go = me ? "home" : i === lead ? "baton" : "";                       // only these two are buttons; the cell is the tap target
-    return `<span ${go ? `data-go="${go}"` : ""} style="grid-row:2;grid-column:${i + 1};display:flex;justify-content:center;align-items:center;padding:7px 0;${go ? "cursor:pointer" : ""}"><span style="width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span></span>`; };
+    bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9;
+    return `<span data-b="${i}" style="grid-row:2;grid-column:${i + 1};display:flex;justify-content:center;align-items:center;padding:7px 0;cursor:pointer"><span style="width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span></span>`; };
   const lab = (i, row, text, color) => `<span class="m" style="grid-row:${row};grid-column:${i + 1};justify-self:${i < 2 ? "start" : i > 21 ? "end" : "center"};color:${color};font-size:12px;white-space:nowrap">${text}</span>`;
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:0;margin-top:4px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lab(meBand, 3, "Here", "var(--ink)")}</div>`;
   el.hidden = false;
@@ -386,11 +385,13 @@ setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
   });
   const stop = () => { d = null; };
   cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
-  $("#strip").onclick = (e) => {                                      // the white dot takes you home, the gold dot turns to the baton
-    const t = e.target.closest("[data-go]"); if (!t || !G) return; const rad = Math.PI / 180;
-    if (t.dataset.go === "home") { const me = (G.mine || []).indexOf(true); if (me < 0) return; G.dragged = false; spinTo((12 - me) * 15 * rad); }
-    else if (G.baton) { G.dragged = true; spinTo(((12 - G.baton.from) + (12 - G.baton.to)) / 2 * 15 * rad); }
+  $("#strip").onclick = (e) => {                                      // any dot turns the globe to its band; white = home, the gold lead dot = the baton
+    const t = e.target.closest("[data-b]"); if (!t || !G) return; const b = +t.dataset.b, rad = Math.PI / 180, me = (G.mine || []).indexOf(true);
+    if (b === me) { G.dragged = false; spinTo((12 - me) * 15 * rad); }
+    else if (G.baton && b === G.baton.to) { G.dragged = true; spinTo(((12 - G.baton.from) + (12 - G.baton.to)) / 2 * 15 * rad); }
+    else { G.dragged = true; spinTo((12 - b) * 15 * rad); }
   };
+
 })();                                   // bands get stamped and the sun moves
 function planetScreen(p) {
   const el = $("#planet");

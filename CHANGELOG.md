@@ -4,6 +4,16 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.8 — "Moving Notes"
+**Thu Oct 15, 2026 · 2:20 PM HST**
+
+- **The notes move every day.** Each day has its own home note. On the Catch screen, the last three notes you can hear decide the pitch: Settle steps back toward home, Lean steps away, and a rest holds still. Your own Settle or Lean button sounds as the next step.
+- **Yesterday's tune** plays the whole lap straight through in that day's key.
+- **The last band's quote:** if they skipped the reply, one of their other picks stands in for it.
+- **Your name** is now just a Shuffle button: tap it and you get a new pair of words.
+- **The tune** on the Catch screen plays a little faster.
+- **Yesterday's lap bar** has lost the starry background. Empty bands are see-through.
+
 ## v0.7 — "Vibe Check"
 **Thu Oct 15, 2026 · 2:05 PM HST**
 

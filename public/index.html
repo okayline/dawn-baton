@@ -23,7 +23,7 @@ nav{display:flex;gap:6px}nav .tab{flex:1;padding:8px}
 .grad{height:34px;border:2px solid #fff;margin:8px 0;display:flex}.grad i{flex:1}
 #pv{position:sticky;top:0;z-index:5;background:#ffe066;color:#12124a;font-weight:700;text-align:center;padding:6px;font-size:12px}
 #adm{position:fixed;left:0;right:0;bottom:0;background:#0b0b2b;border-top:2px solid var(--gold);padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:9}
-.slot{margin:4px 0 10px}.strand{padding:6px 0;border-bottom:1px solid #3a3a9a}.strand.me{background:#2b2b8a;border:2px solid var(--gold);padding:6px 8px;border-radius:4px}
+.slot{margin:4px 0 10px}.strand{cursor:pointer;padding:6px 0;border-bottom:1px solid #3a3a9a}.strand.me{background:#2b2b8a;border:2px solid var(--gold);padding:6px 8px;border-radius:4px}
 select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:3px}
 </style></head><body><main>
 <div id="pv" hidden>PREVIEW MODE: made-up screens. Nothing is sent or saved. Press X to close.</div>
@@ -214,7 +214,7 @@ function strand(st, me) {
   const t = words(st);
   const when = st.t == null ? "" : st.bot ? `window closed ${hms(st.t * 1000)}` : `${hms(st.t * 1000)} &middot; ${inWindow(st)}`;
   const sky = SKY[st.sky] || "";
-  return `<div class="strand${me ? " me" : ""}">
+  return `<div class="strand${me ? " me" : ""}" data-b="${st.band}">
     <div class="r" style="justify-content:space-between;flex-wrap:nowrap;align-items:center;gap:8px;min-height:30px">
       <div style="font-size:16px;line-height:1.2">${t.line ? `&ldquo;${esc(t.line)}&rdquo;` : ""}</div>
       <span title="${esc(sky)}" aria-label="${esc(sky)}" style="display:flex;flex:none">${st.sky ? skyIcon(st, 30) : ""}</span></div>
@@ -224,13 +224,13 @@ function strand(st, me) {
 }
 function payoffScreen(l) {
   const el = $("#payoff");
-  if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; return; }
+  if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; lapForGlobe = null; G = null; refreshGlobe(); return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
   const nav = `<div class="r" style="justify-content:space-between;flex-wrap:nowrap"><button id="lprev" ${l.lap <= l.first ? "disabled" : ""} aria-label="Earlier lap">&#9664;</button>
     <div style="text-align:center"><b>Lap ${l.lap}</b><div class="m">${new Date(l.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div></div>
     <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
-  el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i style="flex:1;height:100%;background:${cellBg(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
+  el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i data-b="${st.band}" style="flex:1;height:100%;cursor:pointer;background:${cellBg(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
     
     <div class="r" style="gap:0;flex-wrap:nowrap;margin-top:2px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (NOTE_WORD[st.note] || "silence").toLowerCase()}" style="flex:1;display:flex;justify-content:center">${noteIcon(st)}</span>`).join("")}</div>
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} settle</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} lean</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
@@ -239,6 +239,8 @@ function payoffScreen(l) {
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
+  lapForGlobe = l; G = null; refreshGlobe();                          // the globe shows this lap, in its players' colours
+  el.onclick = (e) => { const t = e.target.closest("[data-b]"); if (t) pickBand(+t.dataset.b); };
   $("#lprev").onclick = () => { stopSound(); lapN = l.lap - 1; load("payoff"); };
   $("#lnext").onclick = () => { stopSound(); lapN = l.lap + 1 >= l.last ? null : l.lap + 1; load("payoff"); };
   const tb = $("#tune"); let playing = false;
@@ -255,16 +257,12 @@ function payoffScreen(l) {
 // ---------- planet ----------
 // The globe: the 24 solar bands on a sphere, shaded by where the real sun is, centred on the baton. Not draggable.
 const GLOBE_COL = { waiting: [56, 60, 112], open: [255, 214, 86], stamped: [74, 120, 200], bot: [74, 120, 200], unheld: [22, 22, 46] };
-let globeBands = null, WORLD = null, worldAsked = false;   // WORLD: country outlines from /world.json (Natural Earth style, public domain)
-function drawGlobe(cv, bands) {
+let WORLD = null, worldAsked = false;   // WORLD: country outlines from /world.json (Natural Earth style, public domain)
+function drawGlobe(cv, g) {
   const rad = Math.PI / 180, dpr = Math.min(window.devicePixelRatio || 1, 2), N = Math.round(360 * dpr);   // whole pixels only
   cv.width = N; cv.height = N;
-  const ctx = cv.getContext("2d"), R = N / 2 - 4 * dpr, cx = N / 2, cy = N / 2, now = Date.now(), cl = (v, a, b) => Math.max(a, Math.min(b, v));
-  const by = {}; bands.forEach((b) => by[b.band] = b);
-  const lead = Math.max(-1, ...bands.filter((b) => b.status === "open").map((b) => b.band));
-  const last = Math.max(0, ...bands.filter((b) => b.status !== "waiting").map((b) => b.band));
-  const lam0 = (12 - (lead >= 0 ? lead : last)) * 15 * rad, phi0 = 20 * rad;
-  const col = []; for (let i = 0; i < 24; i++) { const c = GLOBE_COL[(by[i] || {}).status] || GLOBE_COL.waiting, t = i % 2 ? 1 : 0.9; col.push([c[0] * t, c[1] * t, c[2] * t]); }
+  const ctx = cv.getContext("2d"), R = N / 2 - 4 * dpr, cx = N / 2, cy = N / 2, now = g.sunMs, cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lam0 = g.lam, phi0 = 10 * rad, col = g.cols, mine = g.mine || [], sel = g.sel == null ? -2 : g.sel;
   const d = new Date(now), u = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600, doy = Math.floor((now - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000);
   const dec = -23.44 * rad * Math.cos(2 * Math.PI * (doy + 10) / 365), sl = -(u - 12) * 15 * rad;
   const sp0 = Math.sin(phi0), cp0 = Math.cos(phi0), sd = Math.sin(dec), cd = Math.cos(dec);
@@ -279,7 +277,10 @@ function drawGlobe(cv, bands) {
     data[k * 4] = c[0] * sh; data[k * 4 + 1] = c[1] * sh; data[k * 4 + 2] = c[2] * sh; data[k * 4 + 3] = 255;
   } }
   for (let k = 0; k < N * N - N - 1; k++) { const a = idx[k]; if (a < 0) continue;
-    if ((idx[k + 1] >= 0 && idx[k + 1] !== a) || (idx[k + N] >= 0 && idx[k + N] !== a)) { data[k * 4] *= 0.35; data[k * 4 + 1] *= 0.35; data[k * 4 + 2] *= 0.35; } }
+    const e1 = idx[k + 1] >= 0 && idx[k + 1] !== a, e2 = idx[k + N] >= 0 && idx[k + N] !== a;
+    if (e1 || e2) {
+      if (a === sel || (e1 && idx[k + 1] === sel) || (e2 && idx[k + N] === sel)) { data[k * 4] = data[k * 4 + 1] = data[k * 4 + 2] = 255; }   // the chosen band gets a white edge
+      else { data[k * 4] *= 0.35; data[k * 4 + 1] *= 0.35; data[k * 4 + 2] *= 0.35; } } }
   ctx.putImageData(img, 0, 0);
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = "rgba(140,140,155,0.7)"; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
   const proj = (phi, lam) => { const dl = lam - lam0; return { c: sp0 * Math.sin(phi) + cp0 * Math.cos(phi) * Math.cos(dl), x: cx + R * Math.cos(phi) * Math.sin(dl), y: cy - R * (cp0 * Math.sin(phi) - sp0 * Math.cos(phi) * Math.cos(dl)) }; };
@@ -292,17 +293,48 @@ function drawGlobe(cv, bands) {
   }
   ctx.font = (11 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let i = 0; i < 24; i++) { const p = proj(0, (12 - i) * 15 * rad); if (p.c < 0.3) continue; const o = 12 - i, t = (o >= 0 ? "+" : "-") + Math.abs(o);
-    ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,10,40,0.8)"; ctx.strokeText(t, p.x, p.y); ctx.fillStyle = (by[i] || {}).mine ? "#6be08a" : "#f2f2ff"; ctx.fillText(t, p.x, p.y); }
+    ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,10,40,0.8)"; ctx.strokeText(t, p.x, p.y); ctx.fillStyle = mine[i] ? "#6be08a" : "#f2f2ff"; ctx.fillText(t, p.x, p.y); }
   const sp = proj(dec, sl); if (sp.c > 0) { ctx.beginPath(); ctx.arc(sp.x, sp.y, 6 * dpr, 0, 7); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke(); }
 }
+const hslRgb = ([h, s, l]) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0) * 255, f(8) * 255, f(4) * 255]; };
+let G = null, spinRaf = 0;                                          // G: what the globe is showing right now
+function liveState(bands) {                                         // today: where the baton is, who has stamped
+  const by = {}; bands.forEach((b) => by[b.band] = b);
+  const lead = Math.max(-1, ...bands.filter((b) => b.status === "open").map((b) => b.band));
+  const last = Math.max(0, ...bands.filter((b) => b.status !== "waiting").map((b) => b.band));
+  const cols = [], mine = []; for (let i = 0; i < 24; i++) { const c = GLOBE_COL[(by[i] || {}).status] || GLOBE_COL.waiting, t = i % 2 ? 1 : 0.9; cols.push([c[0] * t, c[1] * t, c[2] * t]); mine.push(!!(by[i] || {}).mine); }
+  return { kind: "live", cols, mine, lam: (12 - (lead >= 0 ? lead : last)) * 15 * Math.PI / 180, sunMs: Date.now(), sel: null };
+}
+function lapState(l) {                                              // a finished lap: each band in the colour its player picked
+  const cols = [], mine = [], opens = []; for (let i = 0; i < 24; i++) {
+    const st = l.stamps.find((x) => x.band === i) || { kind: "gap" };
+    cols.push(st.kind === "gap" ? GLOBE_COL.unheld : st.color != null && palette[st.color] ? hslRgb(palette[st.color].hsl) : GLOBE_COL.stamped);
+    mine.push(!!st.mine); opens.push((st.opensAt || l.startsAt) + 30 * 60000);
+  }
+  return { kind: "lap", cols, mine, opens, lapSun: l.startsAt, lam: 0, sunMs: l.startsAt, sel: null };
+}
+function spinTo(lam) {                                              // turn the globe the short way round
+  cancelAnimationFrame(spinRaf); const from = G.lam, d = ((lam - from) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI, t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / 500); G.lam = from + d * (1 - Math.pow(1 - k, 3)); drawGlobe($("#globe"), G); if (k < 1) spinRaf = requestAnimationFrame(step); };
+  spinRaf = requestAnimationFrame(step);
+}
+function pickBand(b) {                                              // Yesterday: tap a band (or its stamp) to turn the globe to it
+  if (!G || G.kind !== "lap") return;
+  G.sel = G.sel === b ? null : b; G.sunMs = G.sel == null ? G.lapSun : G.opens[G.sel];
+  spinTo(G.sel == null ? 0 : (12 - G.sel) * 15 * Math.PI / 180);
+  $("#globe").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+let lapForGlobe = null;
 async function refreshGlobe() {                                      // one globe above every screen except Account
   const wrap = $("#gw"); if (curTab === "account") { wrap.hidden = true; return; }
+  if (curTab === "payoff" && lapForGlobe) { if (G && G.kind === "lap") return; G = lapState(lapForGlobe); wrap.hidden = false; drawGlobe($("#globe"), G); return; }
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
   if (curTab === "account" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
-  wrap.hidden = false; globeBands = p.bands; drawGlobe($("#globe"), globeBands);
-  if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && globeBands) drawGlobe($("#globe"), globeBands); }).catch(() => {}); }
+  if (curTab === "payoff" && lapForGlobe) return;                   // the lap arrived while we were asking: its globe wins
+  cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false; drawGlobe($("#globe"), G);
+  if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && G) drawGlobe($("#globe"), G); }).catch(() => {}); }
 }
-setInterval(refreshGlobe, 30000);                                   // bands get stamped and the sun moves
+setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);                                   // bands get stamped and the sun moves
 function planetScreen(p) {
   const el = $("#planet");
   if (!p.bands || !p.bands.length) { el.innerHTML = `<div class="p"><p class="h">The planet</p><div class="m">The first lap hasn't started.</div></div>`; return; }

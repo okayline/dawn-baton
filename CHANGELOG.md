@@ -4,6 +4,15 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.16 — "Next Up"
+**Thu Oct 15, 2026 · 4:22 PM HST**
+
+- **After you pass the baton,** the top of "Your dawn" says "Your next window is in 23h 40m at 3:57 PM", counting down live. The "Passed" card now says "See how it turned out tomorrow morning!"
+- **Yesterday's "You didn't catch the baton" card** uses the same countdown.
+- **On Yesterday, a stamp you pick takes the top spot.** Your own stamp drops into the list at its place, still outlined.
+- **Five lines reworded:** "New day, fresh start!", "sipping coffee", "mid-workout", "good music" and "a friend".
+- **The page tells browsers it's already dark,** so dark-mode features stop washing out the colors.
+
 ## v0.15 — "Fresh Words"
 **Thu Oct 15, 2026 · 4:00 PM HST**
 

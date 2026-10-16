@@ -4,6 +4,13 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.11 — "Slow Turn"
+**Thu Oct 15, 2026 · 3:05 PM HST**
+
+- **The Catch globe turns on its own** when you're not touching it. It stops at your band for 3 seconds first, then drifts slowly west. Touch it, or tap a dot, and it waits again.
+- **Change your band and the globe follows.** Pick a new UTC offset and the globe, the strip and "Your dawn" update right away.
+- **On Yesterday, tapping a band or a stamp puts that stamp at the top of the strand,** right under your own, with the rest of the list in order after it. The globe's lighting stays put.
+
 ## v0.10 — "Look Around"
 **Thu Oct 15, 2026 · 2:55 PM HST**
 

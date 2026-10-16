@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.13 — "Your Dawn"
+**Thu Oct 15, 2026 · 3:30 PM HST**
+
+- **"Your dawn" is redone.** From the top: the countdown (bigger and bold), your band with your local time, sunrise and sunset, day length, and your streak ("5 laps in a row").
+- **The band picker moved to Account.** It's the first card there. Catch only shows it if you haven't picked a band yet.
+- **The baton's band number sits under its gold dot** in the row of dots below the globe. No other dot has a number.
+- **The globe turns a little slower** when you're not touching it.
+
 ## v0.12 — "How To"
 **Thu Oct 15, 2026 · 3:20 PM HST**
 

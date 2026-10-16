@@ -87,7 +87,7 @@ export const PHRASES = [
   "Hot coffee, good vibes.", "Same, honestly.", "Sunshine received.", "Okay, that made me smile :)",
   "Thanks, sunshine!", "*warm wave*", "It's morning already??", "Look at you!",
   "Rise and shine \u2600\uFE0F", "You do you!", "Hello from the crack of dawn.", "*Big hugs*",
-  "Fresh day, let's go!", "Got your back.", "Let's goo!", "We got this.",
+  "New day, fresh start!", "Got your back.", "Let's goo!", "We got this.",
 ];
 export const FEELINGS = [
   "sleepy", "hopeful", "excited", "calm",
@@ -97,12 +97,12 @@ export const FEELINGS = [
 ];
 export const GESTURES = [
   "mid-yawn", "singing to myself", "stretching like a cat", "dancing like nobody's watching",
-  "talking to my coffee", "smiling at nothing", "waving at the sun", "talking to a plant",
+  "sipping coffee", "smiling at nothing", "mid-workout", "talking to a plant",
   "eating cereal standing up", "daydreaming", "squinting at the sunrise", "pretending to be productive",
 ];
 export const SIGNOFFS = [
-  "a good song", "snacks, obviously", "exactly (1) plan", "comfy hoodie",
-  "zero expectations", "main character energy", "a long walk", "clean socks",
+  "good music", "snacks, obviously", "exactly (1) plan", "comfy hoodie",
+  "zero expectations", "main character energy", "a friend", "clean socks",
   "questionable confidence", "a little sunshine",
   "blind faith", "a dollar and a dream", "a smile",
 ];

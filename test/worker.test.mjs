@@ -436,3 +436,19 @@ test("a first-time player is offered the band their rough location is in", async
   await me("/api/band", { offset: -10 });
   assert.equal((await me("/api/today")).data.suggest, undefined);
 });
+
+test("the public ledger never shows who stamped, but you still find your own stamp and your name", async () => {
+  const env = makeEnv(); const me = browser(env), other = browser(env);
+  await me("/api/band", { offset: 0 }); await me("/api/name", { a: "adj:1", b: "noun:1", signs: true });
+  await other("/api/band", { offset: 1 });
+  at(12.5); await me("/api/stamp", { color: 9, note: "tension" });
+  at(11.5); await other("/api/stamp", { color: 3 });
+  at(26);
+  const entries = (await other("/api/ledger?limit=200")).data.entries;
+  const stamps = entries.filter((e) => e.kind === "stamp");
+  assert.equal(stamps.length, 2);
+  for (const e of entries) assert.ok(!("player" in JSON.parse(e.record || "{}")) && !("player_id" in e));   // nobody's id, public
+  const lap = (await me("/api/lap")).data;
+  assert.equal(lap.yours.band, 12);                                    // your own stamp is still found
+  assert.ok(lap.stamps.some((s) => s.mine && s.name));                 // and so is your name, on your stamp
+});

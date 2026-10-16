@@ -132,7 +132,7 @@ async function botStamp(env, lap, band) {
 
 // ---------- reading stamps back ----------
 
-const parse = (row) => ({ ...JSON.parse(row.record), id: row.id, hash: row.hash });
+const parse = (row) => ({ ...JSON.parse(row.record), player: row.player_id ?? null, id: row.id, hash: row.hash });   // who stamped comes from the private column, not the public record
 const view = (r, mineId = null) => ({
   band: r.band, label: B.bandLabel(r.band), kind: r.kind, bot: !!r.bot,
   color: r.color ?? null, note: r.note ?? null, phrase: r.phrase ?? null, feeling: r.feeling ?? null,
@@ -220,7 +220,7 @@ async function stamp(ctx) {
   const when = sec(ctx.t);
   const res = await seal(ctx.db, {
     kind: "stamp", lap: w.lap, band: me.band, playerId: me.id,
-    record: stampRecord({ lap: w.lap, band: me.band, color: s.color, note: s.note, phrase: s.phrase, feeling: s.feeling, gesture: s.gesture, signoff: s.signoff, sky, player: me.id, bot: false, t: when }), t: when,
+    record: stampRecord({ lap: w.lap, band: me.band, color: s.color, note: s.note, phrase: s.phrase, feeling: s.feeling, gesture: s.gesture, signoff: s.signoff, sky, bot: false, t: when }), t: when,
   });
   if (res === "duplicate") throw new Oops("You've already passed the baton this lap.", 409);
   return { ok: true, lap: w.lap, band: me.band, sealsAt: w.closesAt, message: "Passed. See the finished lap tomorrow morning." };

@@ -17,9 +17,11 @@ export async function sha256(text) {
 
 export const lapRecord = ({ lap, startsAt }) => JSON.stringify({ kind: "lap", lap, starts_at: Math.floor(startsAt / 1000) });
 
-export const stampRecord = ({ lap, band, color, note, phrase, feeling, gesture, signoff, sky, player, bot, t }) =>
+// The sealed record is public once its lap is over, so it holds no player id. Who stamped is kept in the ledger table's
+// own player_id column, which no endpoint publishes. (Stamps sealed before v0.15 still carry a `player` in the record.)
+export const stampRecord = ({ lap, band, color, note, phrase, feeling, gesture, signoff, sky, bot, t }) =>
   JSON.stringify({ kind: "stamp", lap, band, color, note, phrase: phrase ?? null, feeling: feeling ?? null, gesture: gesture ?? null,
-    signoff: signoff ?? null, sky, player: player ?? null, bot: bot ? 1 : 0, t });
+    signoff: signoff ?? null, sky, bot: bot ? 1 : 0, t });
 
 export const gapRecord = ({ lap, band, t }) => JSON.stringify({ kind: "gap", lap, band, t });
 

@@ -216,12 +216,6 @@ const skyIcon = (st, size = 14) => {
   const sky = st.kind === "gap" ? st.fillSky : st.sky;
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}"${st.kind === "gap" ? ' opacity=".55"' : ""}>${ICON[sky] || ICON.unknown}</svg>`;
 };
-const nextWindow = (n) => {
-  if (n.open) return `Your window is open now, until ${hm(n.closesAt)}.`;
-  const d = new Date(n.opensAt), today = new Date(), tomorrow = new Date(today.getTime() + 86400000);
-  const day = d.toDateString() === today.toDateString() ? "today" : d.toDateString() === tomorrow.toDateString() ? "tomorrow" : d.toLocaleDateString([], { weekday: "long" });
-  return `Your next window is ${day} at ${hm(n.opensAt)}.`;
-};
 // Note symbols: a music note for resolve, a flat sign for tension, a dash for silence (an unheld band gets a dimmer dash).
 const NOTE_ICON = {
   resolve: '<ellipse cx="5.6" cy="12" rx="3" ry="2.2" transform="rotate(-20 5.6 12)" fill="#9fd0ff"/><path d="M8.4 11.6V2.6c.2 3.2 4.4 3.2 4.1 6.6" fill="none" stroke="#9fd0ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -258,7 +252,7 @@ function payoffScreen(l) {
     <div class="r" style="gap:0;flex-wrap:nowrap;margin-top:2px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (NOTE_WORD[st.note] || "silence").toLowerCase()}" style="flex:1;display:flex;justify-content:center">${noteIcon(st)}</span>`).join("")}</div>
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} settle</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} lean</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
     </div>
-    ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
+    ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px" data-cd="next" data-t="${l.next.opensAt}">${cdText("next", l.next.opensAt)}</div></div>` : ""}
     <div id="top">${myBox}</div>
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;

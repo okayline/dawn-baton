@@ -29,9 +29,9 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div id="pv" hidden>PREVIEW MODE: made-up screens. Nothing is sent or saved. Press X to close.</div>
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
-<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
+<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button><button class="tab" data-t="help" aria-label="How to play" style="flex:0 0 auto;padding:8px 16px">?</button></nav>
 <div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
-<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
+<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section>
 <footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
 </main>
 <div id="adm" hidden></div>
@@ -58,7 +58,7 @@ function show(t) {
   if (t === "payoff" && curTab !== "payoff") lapN = null;      // coming back to Yesterday starts at the latest lap again
   curTab = t;
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
-  for (const id of ["catch", "payoff", "planet", "account"]) $("#" + id).hidden = id !== t;
+  for (const id of ["catch", "payoff", "planet", "account", "help"]) $("#" + id).hidden = id !== t;
   load(t); refreshGlobe();
 }
 async function load(which) {
@@ -67,6 +67,19 @@ async function load(which) {
   if (which === "payoff") return payoffScreen(fx || await api("lap" + (lapN ? "?n=" + lapN : "")));
   if (which === "planet") return planetScreen(fx || await api("planet"));
   if (which === "account") return accountScreen(fx || await api("account"));
+  if (which === "help") return helpScreen();
+}
+
+// ---------- how to play ----------
+function helpScreen() {
+  const cards = [
+    ["What is this?", "A game about connecting with people through the Sun's real position. Every morning, a baton follows the sunrise around the planet. When it gets to you, you add a little something and pass it on to the next person."],
+    ["Your band", "Earth is split into 24 bands, one for each hour of sunrise. You pick yours in Account. The baton gets to you when the sun rises in your band."],
+    ["Catch it", "Your window opens at sunrise and stays open 2 hours. On the Catch page, see what the person before you sent, then add your own: a color, Settle or Lean, a few words. Everything is optional. Then pass it on."],
+    ["Yesterday", "Once the baton has gone all the way around, you can see the whole lap: everyone's colors, the tune, and the words. Your own stamp is marked."],
+    ["The globe", "Gold is the baton. White is you. \u2600\uFE0F is where the sun is right now. Tap a dot under the globe to jump to that band."],
+  ];
+  $("#help").innerHTML = `<div style="display:grid;gap:10px;margin-top:10px">` + cards.map(([h, t]) => `<div class="p" style="margin:0"><b>${h}</b><div style="margin-top:6px">${t}</div></div>`).join("") + `</div>`;
 }
 
 // ---------- catch ----------
@@ -367,10 +380,10 @@ function pickBand(b) {                                              // Yesterday
 }
 let lapForGlobe = null, strandRender = null;
 async function refreshGlobe() {                                      // one globe above every screen except Account
-  const wrap = $("#gw"); if (curTab === "account") { wrap.hidden = true; return; }
+  const wrap = $("#gw"); if (curTab === "account" || curTab === "help") { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) { if (G && G.kind === "lap") return; G = lapState(lapForGlobe); wrap.hidden = false; drawGlobe($("#globe"), G); return; }
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
-  if (curTab === "account" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
+  if (curTab === "account" || curTab === "help" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) return;                   // the lap arrived while we were asking: its globe wins
   const was = G && curTab === "catch" && (G.dragged || G.auto) ? { lam: G.lam, dragged: !!G.dragged, auto: !!G.auto } : null;
   cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false;

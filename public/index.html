@@ -29,10 +29,10 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div id="pv" hidden>PREVIEW MODE: made-up screens. Nothing is sent or saved. Press X to close.</div>
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
-<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button><button class="tab" data-t="help" aria-label="How to play" style="flex:0 0 auto;padding:8px 16px">?</button></nav>
+<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
 <div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section>
-<footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
+<footer class="m" style="text-align:center;padding:8px 0 56px"><span id="ver">Dawn Baton</span> &middot; <a href="#" id="howto" style="color:inherit">How to Play</a></footer>
 </main>
 <div id="adm" hidden></div>
 <script>
@@ -54,6 +54,7 @@ const api = async (p, body) => {
 };
 
 document.querySelectorAll(".tab").forEach((b) => b.onclick = () => show(b.dataset.t));
+$("#howto").onclick = (e) => { e.preventDefault(); show("help"); window.scrollTo(0, 0); };
 function show(t) {
   if (t === "payoff" && curTab !== "payoff") lapN = null;      // coming back to Yesterday starts at the latest lap again
   curTab = t;

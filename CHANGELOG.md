@@ -4,6 +4,13 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.9 — "The Big Picture"
+**Thu Oct 15, 2026 · 2:35 PM HST**
+
+- **A globe on the Planet tab.** The 24 bands are cut out on a globe that stays centered on whoever holds the baton. Open bands glow gold, stamped bands are blue, and unheld bands are dark. Your own band number is green.
+- **Real day and night.** The shading follows where the sun actually is right now, and a white ring marks the spot where it's straight overhead.
+- **Light country outlines** give the globe some context.
+
 ## v0.8 — "Moving Notes"
 **Thu Oct 15, 2026 · 2:20 PM HST**
 

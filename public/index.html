@@ -30,7 +30,7 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
-<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
+<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div><div style="text-align:center;margin-top:8px"><button id="gback" hidden>Back to my band</button></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
 <footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
 </main>
@@ -358,14 +358,30 @@ async function refreshGlobe() {                                      // one glob
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
   if (curTab === "account" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) return;                   // the lap arrived while we were asking: its globe wins
+  const keep = G && G.dragged && curTab === "catch" ? G.lam : null;
   cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false;
   const me = p.bands.find((b) => b.mine);
-  if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; }   // Catch: you in the middle, your band edged in white
+  if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; if (keep != null) { G.lam = keep; G.dragged = true; } }   // Catch: you in the middle, your band edged in white
   drawStrip(p.bands, curTab === "catch" && me ? me.band : null);
-  drawGlobe($("#globe"), G);
+  drawGlobe($("#globe"), G); $("#gback").hidden = !G.dragged;
   if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && G) drawGlobe($("#globe"), G); }).catch(() => {}); }
 }
-setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);                                   // bands get stamped and the sun moves
+setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
+(() => {                                                            // Catch only: drag the globe sideways, slowly (half speed). Up and down still scrolls the page.
+  const cv = $("#globe"); let d = null, raf = 0;
+  cv.style.touchAction = "pan-y";
+  cv.addEventListener("pointerdown", (e) => { if (G && G.pov === "you" && curTab === "catch") { d = e.clientX; cv.setPointerCapture(e.pointerId); } });
+  cv.addEventListener("pointermove", (e) => {
+    if (d == null) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), R = cv.width / 2 - 4 * dpr, k = (cv.width / cv.getBoundingClientRect().width) / R * 0.5;   // canvas pixels per screen pixel, over the radius, at half speed
+    G.lam -= (e.clientX - d) * k; d = e.clientX;
+    G.dragged = true; $("#gback").hidden = false; cancelAnimationFrame(spinRaf);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawGlobe(cv, G); });
+  });
+  const stop = () => { d = null; };
+  cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
+  $("#gback").onclick = () => { const me = (G && G.mine || []).indexOf(true); if (me < 0) return; G.dragged = false; $("#gback").hidden = true; spinTo((12 - me) * 15 * Math.PI / 180); };
+})();                                   // bands get stamped and the sun moves
 function planetScreen(p) {
   const el = $("#planet");
   if (!p.bands || !p.bands.length) { el.innerHTML = `<div class="p"><p class="h">The planet</p><div class="m">The first lap hasn't started.</div></div>`; return; }

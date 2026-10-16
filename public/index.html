@@ -85,7 +85,7 @@ function helpScreen() {
 
 // ---------- catch ----------
 const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
-const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
+const cdText = (kind, t) => kind === "next" ? `Your next window is in ${dur(t - Date.now())} at ${hm(t)}.` : kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
 const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 setInterval(() => document.querySelectorAll("[data-clock]").forEach((e) => { e.textContent = clock(); }), 30000);
 setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
@@ -128,13 +128,13 @@ function catchScreen(d) {
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
   if (!w.open) h += `<div style="font-size:18px;font-weight:700" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
-  else h += d.stamped ? `<div style="font-size:18px;font-weight:700">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
+  else h += d.stamped ? `<div style="font-size:18px;font-weight:700" data-cd="next" data-t="${w.opensAt + 86400000}">${cdText("next", w.opensAt + 86400000)}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
   h += `<div class="m">${esc(d.band.label).toUpperCase()}, <span data-clock>${clock()}</span> local time</div>`;
   if (w.open && d.sky) h += `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>`;
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
   if (d.streak) h += `<div style="margin-top:6px">${d.streak} ${d.streak === 1 ? "lap" : "laps"} in a row</div>`;
   h += `</div>`;
-  if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it ended tomorrow morning.</div>`;
+  if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it turned out tomorrow morning!</div>`;
   else if (w.open) {
     h += `<div class="p">`;
     if (d.prev) {

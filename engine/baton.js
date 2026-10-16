@@ -83,11 +83,11 @@ export function skyFromWmo(code) {
 // Picked-from-list slots. A stamp stores the index, never the text, so the same stamp can be shown in any
 // language later. Append new entries to the END of a list (indices are sealed in the ledger forever).
 export const PHRASES = [
-  "Morning to you too!", "Right back at you!", "Still half asleep, hi.", "Hi, hi, hi!",
-  "Hope your coffee's hot.", "Same, honestly.", "Sunshine received.", "Okay that made me smile.",
-  "Thanks for the light.", "Sending a warm wave.", "It's morning already??", "Look at you go.",
-  "Rise and shine, you.", "Keep being you.", "Hello from the sunrise.", "Big hug from over here.",
-  "Fresh day, let's go.", "Rooting for you.", "Right back at you, early bird.", "Onwards!!",
+  "Morning to you too!", "Right back a'cha!", "Still half aslee--", "Hi, hi, hi, hi!!",
+  "Hot coffee, good vibes.", "Same, honestly.", "Sunshine received.", "Okay, that made me smile :)",
+  "Thanks, sunshine!", "*warm wave*", "It's morning already??", "Look at you!",
+  "Rise and shine \u2600\uFE0F", "You do you!", "Hello from the crack of dawn.", "*Big hugs*",
+  "Fresh day, let's go!", "Got your back.", "Let's goo!", "We got this.",
 ];
 export const FEELINGS = [
   "sleepy", "hopeful", "restless", "calm",

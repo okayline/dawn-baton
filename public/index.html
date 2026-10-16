@@ -48,6 +48,7 @@ const hsl = (c) => c == null ? "#0b0b2b" : `hsl(${c.hsl[0]},${c.hsl[1]}%,${c.hsl
 const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const NOTE_WORD = { resolve: "Settle", tension: "Lean" };   // what players see; the stored values stay resolve/tension
 let palette = [], lists = { phrase: [], feeling: [], gesture: [], signoff: [] };
 let pick = {}, isAdmin = false, PV = null, newCode = null, NAMES = { adj: [], noun: [] }, lapN = null, curTab = "catch";
 
@@ -130,7 +131,7 @@ function catchScreen(d) {
           <button id="hear" aria-label="Play the last notes" style="padding:3px 10px">&#9654;</button><span style="display:flex;gap:2px;align-items:center">${(d.heard || []).map((n) => noteIcon({ note: n }, 18)).join("")}</span></div>`;
     } else h += `<div class="m">Nobody has stamped yet this lap. You're first.</div>`;
     h += `</div><div class="p"><p class="h">Your stamp</p>${askHead("color")}<div class="r" style="gap:4px;margin:4px 0 10px">${palette.map((c, i) => `<button class="sw" data-k="color" data-v="${i}" title="${c.name}" style="background:${hsl(c)}"></button>`).join("")}</div>
-      ${askHead("note")}<div class="r slot">${d.notes.map((n) => `<button class="chip" data-k="note" data-v="${n}">${cap(n)}</button>`).join("")}</div>
+      ${askHead("note")}<div class="r slot">${d.notes.map((n) => `<button class="chip" data-k="note" data-v="${n}">${NOTE_WORD[n] || cap(n)}</button>`).join("")}</div>
       ${SLOTS.map(([k]) => `${askHead(k, !d.prev)}<div class="r slot">${(lists[k] || []).map((t, i) => `<button class="chip" data-k="${k}" data-v="${i}">${esc(t)}</button>`).join("")}</div>`).join("")}</div>
       <button class="go" id="pass">Pass the baton west</button><div class="m" id="msg"></div>`;
   }
@@ -214,7 +215,7 @@ function strand(st, me) {
       <span title="${esc(sky)}" aria-label="${esc(sky)}" style="display:flex;flex:none">${st.sky ? skyIcon(st, 30) : ""}</span></div>
     <div class="m" style="margin-top:2px">#${st.band + 1} &middot; ${esc(st.label)}${st.name ? " &middot; " + esc(st.name) : ""}${st.bot ? " &middot; bot" : ""}${me ? " &middot; you" : ""}</div>
     ${when ? `<div class="m">${when}</div>` : ""}
-    <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;${st.color != null ? `background:${hsl(palette[st.color])}` : "background:transparent;border:1px dashed #6c6cff"}"></span>${[st.note ? cap(st.note) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
+    <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;${st.color != null ? `background:${hsl(palette[st.color])}` : "background:transparent;border:1px dashed #6c6cff"}"></span>${[st.note ? (NOTE_WORD[st.note] || cap(st.note)) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
 }
 function payoffScreen(l) {
   const el = $("#payoff");
@@ -226,8 +227,8 @@ function payoffScreen(l) {
     <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
   el.innerHTML = `<div class="p">${nav}</div><div class="p"><p class="h">The lap</p><div class="r sky" style="height:34px;margin:8px 0;border:2px solid #fff;gap:0;flex-wrap:nowrap">${l.stamps.map((st) => `<i style="flex:1;height:100%;background:${cellBg(st)}"></i>`).join("")}</div><div class="r" style="gap:0;flex-wrap:nowrap;margin-top:4px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld, weather nearby: " + (SKY[st.fillSky] || "unknown") : (SKY[st.sky] || "?")}" style="flex:1;display:flex;justify-content:center">${skyIcon(st)}</span>`).join("")}</div>
     
-    <div class="r" style="gap:0;flex-wrap:nowrap;margin-top:2px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : st.note || "silence"}" style="flex:1;display:flex;justify-content:center">${noteIcon(st)}</span>`).join("")}</div>
-    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} resolve</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} tension</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
+    <div class="r" style="gap:0;flex-wrap:nowrap;margin-top:2px">${l.stamps.map((st) => `<span title="${esc(st.label)}: ${st.kind === "gap" ? "unheld" : (NOTE_WORD[st.note] || "silence").toLowerCase()}" style="flex:1;display:flex;justify-content:center">${noteIcon(st)}</span>`).join("")}</div>
+    <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} settle</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} lean</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
     </div>
     ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
     ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}

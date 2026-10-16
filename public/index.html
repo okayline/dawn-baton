@@ -86,6 +86,8 @@ function helpScreen() {
 // ---------- catch ----------
 const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
 const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
+const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+setInterval(() => document.querySelectorAll("[data-clock]").forEach((e) => { e.textContent = clock(); }), 30000);
 setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
 function bandPicker(cur) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
@@ -99,7 +101,7 @@ function sunLine(sun) {
   if (sun.polar) return `<div class="m">${sun.polar === "day" ? "Polar day: the sun doesn't set today." : "Polar night: the sun doesn't rise today."}</div>`;
   const len = Math.round(sun.length / 1000), d = Math.round(Math.abs(sun.delta) / 1000);
   const delta = sun.delta == null ? "" : ` (${sun.delta >= 0 ? "+" : "&minus;"}${Math.floor(d / 60)}m ${String(d % 60).padStart(2, "0")}s since yesterday)`;
-  return `<div class="m">Sunrise ${hm(sun.rise)} &middot; sunset ${hm(sun.set)} &middot; day length ${Math.floor(len / 3600)}h ${String(Math.floor(len / 60) % 60).padStart(2, "0")}m${delta}</div>`
+  return `<div class="m">Sunrise ${hm(sun.rise)} &ndash; Sunset ${hm(sun.set)}</div><div class="m">Day length ${Math.floor(len / 3600)}h ${String(Math.floor(len / 60) % 60).padStart(2, "0")}m${delta}</div>`
     + (sun.event ? `<div style="color:var(--gold);margin-top:2px"><b>${cap(sun.event)} today.</b></div>` : "");
 }
 
@@ -124,12 +126,13 @@ function catchScreen(d) {
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
-  const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p><div>${esc(d.band.label)}</div>`;
-  if (!w.open) h += `<div class="m" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
-  else h += (d.stamped ? `<div class="m">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div class="m" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`) + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
+  const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
+  if (!w.open) h += `<div data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
+  else h += d.stamped ? `<div>${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
+  h += `<div class="m">${esc(d.band.label).toUpperCase()}, <span data-clock>${clock()}</span> local time</div>`;
+  if (w.open && d.sky) h += `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>`;
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
-  h += `<div class="m">${hm(w.opensAt)} &ndash; ${hm(w.closesAt)} your time</div>`;
-  if (d.streak) h += `<div class="m" style="margin-top:6px">${d.streak} ${d.streak === 1 ? "lap" : "laps"} in a row</div>`;
+  if (d.streak) h += `<div style="margin-top:6px">${d.streak} ${d.streak === 1 ? "lap" : "laps"} in a row</div>`;
   h += `</div>`;
   if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it ended tomorrow morning.</div>`;
   else if (w.open) {

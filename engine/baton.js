@@ -96,9 +96,9 @@ export const FEELINGS = [
   "thankful", "a bit off",
 ];
 export const GESTURES = [
-  "mid-yawn", "humming off-key", "stretching like a cat", "doing a tiny dance",
+  "mid-yawn", "singing to myself", "stretching like a cat", "dancing like nobody's watching",
   "talking to my coffee", "smiling at nothing", "waving at the sun", "talking to a plant",
-  "eating cereal standing up", "rehearsing a speech", "squinting at the sunrise", "pretending to be productive",
+  "eating cereal standing up", "daydreaming", "squinting at the sunrise", "pretending to be productive",
 ];
 export const SIGNOFFS = [
   "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",

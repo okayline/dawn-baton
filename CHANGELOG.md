@@ -4,6 +4,15 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.7 — "Vibe Check"
+**Thu Oct 15, 2026 · 2:05 PM HST**
+
+- **A quieter Catch screen:** the little explainer lines under each question and at the bottom are gone. Just the questions.
+- **Friendlier questions:** "What color is your morning?", "Does the tune settle, or lean?", "Morning, sunshine ☀️", "Vibe check?", "You caught me…" and "What are you bringing today?" (this replaces the old sign-off slot).
+- **New words, same slots:** replies, feelings, gestures and the last slot are rewritten in a looser, funnier voice, with an even mix of morning and not-morning answers.
+- **Settle and Lean:** the two tune buttons are now called Settle and Lean, on the Catch and Yesterday screens.
+- **The last band's card:** their band number and "a while ago" now sit at the top, above what they said.
+
 ## v0.6 — "One of a Kind"
 **Thu Oct 15, 2026 · 1:33 PM HST**
 

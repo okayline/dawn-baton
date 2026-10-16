@@ -78,7 +78,7 @@ function bandPicker(cur) {
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
   return `<div class="r"><select id="off">${o}</select><button id="setband">${cur == null ? "That's my band" : "Change"}</button></div>`;
 }
-function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); load("catch"); }; }
+function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) G.dragged = false; load("catch"); refreshGlobe(); }; }
 
 function sunLine(sun) {
   if (!sun) return "";
@@ -254,7 +254,13 @@ function payoffScreen(l) {
     l.tune.forEach((n, i) => tone(noteFreq(l.lap, l.tune.slice(0, i), n), i * 0.25, 0.4));   // the whole lap plays as one run from home
     tuneTimer = setTimeout(idle, l.tune.length * 250 + 300);
   };
-  const more = $("#more"); if (more) more.onclick = () => { $("#sl").innerHTML = shown.map((x) => strand(x, x.mine)).join(""); more.remove(); };
+  let expanded = false; const more = $("#more");
+  strandRender = (sel) => {                                         // start the list at the picked band; the entries after it keep their order, the earlier ones follow at the end
+    let list = shown;
+    if (sel != null && shown.length) { const at = shown.findIndex((x) => x.band >= sel), i = at < 0 ? 0 : at; list = shown.slice(i).concat(shown.slice(0, i)); }
+    $("#sl").innerHTML = (expanded ? list : list.slice(0, 6)).map((x) => strand(x, x.mine)).join("");
+  };
+  if (more) more.onclick = () => { expanded = true; strandRender(G && G.sel); more.remove(); };
 }
 
 // ---------- planet ----------
@@ -353,10 +359,11 @@ function spinTo(lam) {                                              // turn the 
 function pickBand(b) {                                              // Yesterday: tap a band (or its stamp) to turn the globe to it
   if (!G || G.kind !== "lap") return;
   G.sel = G.sel === b ? null : b; G.sunMs = G.sel == null ? G.lapSun : G.opens[G.sel];
+  if (strandRender) strandRender(G.sel);
   spinTo(G.sel == null ? 0 : (12 - G.sel) * 15 * Math.PI / 180);
   $("#globe").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
-let lapForGlobe = null;
+let lapForGlobe = null, strandRender = null;
 async function refreshGlobe() {                                      // one globe above every screen except Account
   const wrap = $("#gw"); if (curTab === "account") { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) { if (G && G.kind === "lap") return; G = lapState(lapForGlobe); wrap.hidden = false; drawGlobe($("#globe"), G); return; }

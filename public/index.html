@@ -116,6 +116,10 @@ function catchScreen(d) {
     h += `<div class="p">`;
     if (d.prev) {
       const t = words(d.prev);
+      if (!t.line && t.extra.length) {                              // no reply: one of their other picks stands in as the quote (the same one every time)
+        const p = d.prev, k = (((p.color || 0) * 7 + (p.feeling || 0) * 3 + (p.gesture || 0) * 5 + (p.signoff || 0)) % t.extra.length);
+        t.line = t.extra[k]; t.extra = t.extra.filter((_, i) => i !== k);
+      }
       h += `<div class="m" style="margin-bottom:4px">${d.prev.offset != null ? `<b style="color:var(--fg,#f2f2ff)">${d.prev.offset >= 0 ? "+" : "&minus;"}${Math.abs(d.prev.offset)}</b>` : ""}${d.prev.ago ? ` &middot; ${d.prev.ago}` : ""}</div>
         <div class="r" style="justify-content:space-between;flex-wrap:nowrap;align-items:center;gap:8px;min-height:30px"><div style="font-size:16px;line-height:1.2">${t.line ? `&ldquo;${esc(t.line)}&rdquo;` : ""}</div>
           <span style="display:flex;flex:none">${d.prev.sky ? skyIcon({ sky: d.prev.sky }, 30) : ""}</span></div>
@@ -132,7 +136,7 @@ function catchScreen(d) {
   el.querySelectorAll("[data-k]").forEach((b) => b.onclick = () => {
     const k = b.dataset.k, v = k === "note" ? b.dataset.v : +b.dataset.v;
     pick[k] = pick[k] === v ? null : v;
-    if (k === "note" && pick[k]) { stopSound(); tone(pick[k]); }          // hear the note you chose
+    if (k === "note" && pick[k]) { stopSound(); tone(noteFreq(d.lap, d.heard || [], pick[k])); }          // hear the note you chose
     el.querySelectorAll(`[data-k="${k}"]`).forEach((x) => x.classList.toggle("on", pick[k] === (k === "note" ? x.dataset.v : +x.dataset.v)));
   });
   const hear = $("#hear"); if (hear) {
@@ -142,7 +146,7 @@ function catchScreen(d) {
       if (on) { stopSound(); return done(); }
       stopSound(); on = true; hear.innerHTML = "&#9632;";
       const notes = d.heard && d.heard.length ? d.heard : [d.prev && d.prev.note];
-      notes.forEach((n, i) => tone(n, i * 0.55, 0.5));
+      const before = []; notes.forEach((n, i) => { tone(noteFreq(d.lap, before.slice(-3).slice(0, 3), n), i * 0.55, 0.5); before.push(n); });
       tuneTimer = setTimeout(done, notes.length * 550 + 300);
     };
   }
@@ -152,10 +156,17 @@ function catchScreen(d) {
 // resolve = a note that settles, tension = one that leans. One shared audio context; every sound can be stopped.
 let ac = null; const live = new Set(); let tuneTimer = null;
 function ctxAudio() { try { ac = ac || new AudioContext(); if (ac.state === "suspended") ac.resume(); return ac; } catch { return null; } }
-function tone(note, delay = 0, dur = 0.6) {
-  const a = note && ctxAudio(); if (!a) return;
+// Pitch: the day's key comes from the lap number. A note's pitch comes from the (up to) three notes before it:
+// start at home, a Settle steps back toward home, a Lean steps one scale step away, a rest holds still.
+const SCALE = [0, 2, 4, 7, 9, 12, 14, 16];
+const stepFrom = (i, note) => note === "resolve" ? Math.max(0, i - 1) : note === "tension" ? i + 1 : i;
+const walkIdx = (prev) => prev.reduce(stepFrom, 0);
+const freqAt = (lap, i) => 261.63 * Math.pow(2, ((((lap || 1) * 5) % 12) + SCALE[Math.min(i, SCALE.length - 1)]) / 12);
+const noteFreq = (lap, before, note) => note ? freqAt(lap, stepFrom(walkIdx(before), note)) : null;   // null = a rest
+function tone(freq, delay = 0, dur = 0.6) {
+  const a = freq && ctxAudio(); if (!a) return;
   const o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime + delay;
-  o.frequency.value = note === "resolve" ? 329.6 : 493.9;     // settle = E4, lean = B4 (the note that leans toward home)
+  o.frequency.value = freq;
   g.gain.setValueAtTime(0.15, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.05);
   live.add(o); o.onended = () => live.delete(o);
@@ -234,7 +245,7 @@ function payoffScreen(l) {
   tb.onclick = () => {                                              // a second click stops it
     if (playing) { stopSound(); return idle(); }
     stopSound(); playing = true; tb.textContent = "Stop the tune";
-    l.tune.forEach((n, i) => tone(n, i * 0.25, 0.4));
+    l.tune.forEach((n, i) => tone(noteFreq(l.lap, l.tune.slice(Math.max(0, i - 3), i), n), i * 0.25, 0.4));
     tuneTimer = setTimeout(idle, l.tune.length * 250 + 300);
   };
   const more = $("#more"); if (more) more.onclick = () => { $("#sl").innerHTML = shown.map((x) => strand(x, x.mine)).join(""); more.remove(); };

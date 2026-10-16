@@ -78,7 +78,7 @@ function bandPicker(cur) {
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
   return `<div class="r"><select id="off">${o}</select><button id="setband">${cur == null ? "That's my band" : "Change"}</button></div>`;
 }
-function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) G.dragged = false; load("catch"); refreshGlobe(); }; }
+function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) { G.dragged = false; G.auto = false; } load("catch"); refreshGlobe(); }; }
 
 function sunLine(sun) {
   if (!sun) return "";
@@ -351,14 +351,16 @@ function lapState(l) {                                              // a finishe
   }
   return { kind: "lap", cols, mine, opens, lapSun: l.startsAt, lam: 0, sunMs: l.startsAt, sel: null };
 }
+let busyUntil = 0;                                                  // the slow rotation waits until this time
 function spinTo(lam) {                                              // turn the globe the short way round
+  busyUntil = Date.now() + 500 + 3500;
   cancelAnimationFrame(spinRaf); const from = G.lam, d = ((lam - from) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI, t0 = performance.now();
   const step = (t) => { const k = Math.min(1, (t - t0) / 500); G.lam = from + d * (1 - Math.pow(1 - k, 3)); drawGlobe($("#globe"), G); if (k < 1) spinRaf = requestAnimationFrame(step); };
   spinRaf = requestAnimationFrame(step);
 }
 function pickBand(b) {                                              // Yesterday: tap a band (or its stamp) to turn the globe to it
   if (!G || G.kind !== "lap") return;
-  G.sel = G.sel === b ? null : b; G.sunMs = G.sel == null ? G.lapSun : G.opens[G.sel];
+  G.sel = G.sel === b ? null : b;
   if (strandRender) strandRender(G.sel);
   spinTo(G.sel == null ? 0 : (12 - G.sel) * 15 * Math.PI / 180);
   $("#globe").scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -370,24 +372,28 @@ async function refreshGlobe() {                                      // one glob
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
   if (curTab === "account" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) return;                   // the lap arrived while we were asking: its globe wins
-  const keep = G && G.dragged && curTab === "catch" ? G.lam : null;
+  const was = G && curTab === "catch" && (G.dragged || G.auto) ? { lam: G.lam, dragged: !!G.dragged, auto: !!G.auto } : null;
   cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false;
   const me = p.bands.find((b) => b.mine);
-  if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; if (keep != null) { G.lam = keep; G.dragged = true; } }   // Catch: you in the middle, your band edged in white
+  if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; if (was) { G.lam = was.lam; G.dragged = was.dragged; G.auto = was.auto; } }   // Catch: you in the middle, your band edged in white
   drawStrip(p.bands, curTab === "catch" && me ? me.band : null);
   drawGlobe($("#globe"), G);
   if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && G) drawGlobe($("#globe"), G); }).catch(() => {}); }
 }
 setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
+setInterval(() => {                                                 // Catch only: the globe turns slowly (2 degrees a second, the way the Earth does) when nobody is touching it
+  if (curTab !== "catch" || !G || G.pov !== "you" || document.hidden || Date.now() < busyUntil || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  G.lam -= 0.2 * Math.PI / 180; G.auto = true; drawGlobe($("#globe"), G);
+}, 100);
 (() => {                                                            // Catch only: drag the globe sideways, slowly (half speed). Up and down still scrolls the page.
   const cv = $("#globe"); let d = null, raf = 0;
   cv.style.touchAction = "pan-y";
-  cv.addEventListener("pointerdown", (e) => { if (G && G.pov === "you" && curTab === "catch") { d = e.clientX; cv.setPointerCapture(e.pointerId); } });
+  cv.addEventListener("pointerdown", (e) => { if (G && G.pov === "you" && curTab === "catch") { busyUntil = Date.now() + 3500; d = e.clientX; cv.setPointerCapture(e.pointerId); } });
   cv.addEventListener("pointermove", (e) => {
     if (d == null) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2), R = cv.width / 2 - 4 * dpr, k = (cv.width / cv.getBoundingClientRect().width) / R * 0.5;   // canvas pixels per screen pixel, over the radius, at half speed
     G.lam -= (e.clientX - d) * k; d = e.clientX;
-    G.dragged = true; cancelAnimationFrame(spinRaf);
+    G.dragged = true; busyUntil = Date.now() + 3500; cancelAnimationFrame(spinRaf);
     if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawGlobe(cv, G); });
   });
   const stop = () => { d = null; };

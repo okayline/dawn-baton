@@ -265,7 +265,7 @@ function payoffScreen(l) {
 
 // ---------- planet ----------
 // The globe: the 24 solar bands on a sphere, shaded by where the real sun is, centred on the baton. Not draggable.
-const GLOBE_COL = { waiting: [56, 60, 112], open: [255, 214, 86], stamped: [74, 120, 200], bot: [74, 120, 200], unheld: [22, 22, 46] };
+const GLOBE_COL = { waiting: [120, 124, 140], open: [255, 214, 86], stamped: [74, 120, 200], bot: [74, 120, 200], unheld: [22, 22, 46] };
 let WORLD = null, worldAsked = false;   // WORLD: country outlines from /world.json (Natural Earth style, public domain)
 function drawGlobe(cv, g) {
   const rad = Math.PI / 180, dpr = Math.min(window.devicePixelRatio || 1, 2), N = Math.round(360 * dpr);   // whole pixels only
@@ -320,7 +320,7 @@ function drawGlobe(cv, g) {
     }
     ctx.setLineDash([]);
   }
-  const sp = proj(dec, sl); if (sp.c > 0) { ctx.beginPath(); ctx.arc(sp.x, sp.y, 6 * dpr, 0, 7); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke(); }
+  const sp = proj(dec, sl); if (sp.c > 0) { ctx.font = Math.round(18 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.fillText("\u2600\uFE0F", sp.x, sp.y); }
 }
 const hslRgb = ([h, s, l]) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0) * 255, f(8) * 255, f(4) * 255]; };
 function drawStrip(bands, meBand) {                                // the whole lap flattened: where the baton is, and where you are

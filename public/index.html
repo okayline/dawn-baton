@@ -30,7 +30,7 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
-<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas></div>
+<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
 <footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
 </main>
@@ -70,6 +70,9 @@ async function load(which) {
 }
 
 // ---------- catch ----------
+const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
+const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())} &middot; ${new Date(t).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}` : `Open for ${dur(t - Date.now())} more`;
+setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
 function bandPicker(cur) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
@@ -108,8 +111,8 @@ function catchScreen(d) {
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p><div>${esc(d.band.label)}</div>`;
-  if (!w.open) h += `<div class="m">Your window opens ${new Date(w.opensAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} and stays open 2 hours.</div>`;
-  else h += `<div class="m">Open until ${hm(w.closesAt)}.</div>` + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
+  if (!w.open) h += `<div class="m" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
+  else h += (d.stamped ? `<div class="m">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div class="m" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`) + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
   h += `<div style="margin-top:8px">${bandPicker(d.band.offset)}</div></div>`;
   if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it ended tomorrow morning.</div>`;
@@ -294,16 +297,40 @@ function drawGlobe(cv, g) {
   ctx.font = (11 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let i = 0; i < 24; i++) { const p = proj(0, (12 - i) * 15 * rad); if (p.c < 0.3) continue; const o = 12 - i, t = (o >= 0 ? "+" : "-") + Math.abs(o);
     ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,10,40,0.8)"; ctx.strokeText(t, p.x, p.y); ctx.fillStyle = mine[i] ? "#6be08a" : "#f2f2ff"; ctx.fillText(t, p.x, p.y); }
+  if (g.pov === "you" && g.baton) {                                  // the baton's bands: gold edges, dotted where they are on the far side
+    const edges = [(12 - g.baton.to) * 15 - 7.5, (12 - g.baton.from) * 15 + 7.5];
+    for (const dotted of [false, true]) {
+      ctx.beginPath(); ctx.setLineDash(dotted ? [4 * dpr, 5 * dpr] : []); ctx.strokeStyle = "#ffd656"; ctx.lineWidth = (dotted ? 1.5 : 2) * dpr;
+      for (const lon of edges) { let prev = null;
+        for (let la = -90; la <= 90; la += 3) { const p = proj(la * rad, lon * rad);
+          if (prev && (dotted ? (p.c <= 0 && prev.c <= 0) : (p.c > 0 && prev.c > 0))) { ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); }
+          prev = p; } }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
   const sp = proj(dec, sl); if (sp.c > 0) { ctx.beginPath(); ctx.arc(sp.x, sp.y, 6 * dpr, 0, 7); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke(); }
 }
 const hslRgb = ([h, s, l]) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0) * 255, f(8) * 255, f(4) * 255]; };
+function drawStrip(bands, meBand) {                                // the whole lap flattened: where the baton is, and where you are
+  const el = $("#strip"); if (meBand == null) { el.hidden = true; return; }
+  const by = {}; bands.forEach((b) => by[b.band] = b);
+  const opens = bands.filter((b) => b.status === "open").map((b) => b.band), lead = opens.length ? Math.max(...opens) : null;
+  const dot = (i) => { const st = (by[i] || {}).status, me = i === meBand, bg = st === "open" ? "#ffd656" : st === "stamped" || st === "bot" ? "#4a78c8" : st === "unheld" ? "#22223a" : "transparent",
+    bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9;
+    return `<span style="grid-row:2;grid-column:${i + 1};justify-self:center;width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span>`; };
+  const lab = (i, row, text, color) => `<span class="m" style="grid-row:${row};grid-column:${i + 1};justify-self:${i < 2 ? "start" : i > 21 ? "end" : "center"};color:${color};font-size:12px;white-space:nowrap">${text}</span>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:4px;margin-top:10px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lab(meBand, 3, "you", "var(--ink)")}</div>`;
+  el.hidden = false;
+}
 let G = null, spinRaf = 0;                                          // G: what the globe is showing right now
 function liveState(bands) {                                         // today: where the baton is, who has stamped
   const by = {}; bands.forEach((b) => by[b.band] = b);
   const lead = Math.max(-1, ...bands.filter((b) => b.status === "open").map((b) => b.band));
   const last = Math.max(0, ...bands.filter((b) => b.status !== "waiting").map((b) => b.band));
   const cols = [], mine = []; for (let i = 0; i < 24; i++) { const c = GLOBE_COL[(by[i] || {}).status] || GLOBE_COL.waiting, t = i % 2 ? 1 : 0.9; cols.push([c[0] * t, c[1] * t, c[2] * t]); mine.push(!!(by[i] || {}).mine); }
-  return { kind: "live", cols, mine, lam: (12 - (lead >= 0 ? lead : last)) * 15 * Math.PI / 180, sunMs: Date.now(), sel: null };
+  const open = bands.filter((b) => b.status === "open").map((b) => b.band);
+  return { kind: "live", cols, mine, baton: open.length ? { from: Math.min(...open), to: Math.max(...open) } : null, lam: (12 - (lead >= 0 ? lead : last)) * 15 * Math.PI / 180, sunMs: Date.now(), sel: null };
 }
 function lapState(l) {                                              // a finished lap: each band in the colour its player picked
   const cols = [], mine = [], opens = []; for (let i = 0; i < 24; i++) {
@@ -331,7 +358,11 @@ async function refreshGlobe() {                                      // one glob
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
   if (curTab === "account" || !p || !p.bands || !p.bands.length) { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) return;                   // the lap arrived while we were asking: its globe wins
-  cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false; drawGlobe($("#globe"), G);
+  cancelAnimationFrame(spinRaf); G = liveState(p.bands); wrap.hidden = false;
+  const me = p.bands.find((b) => b.mine);
+  if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; }   // Catch: you in the middle, your band edged in white
+  drawStrip(p.bands, curTab === "catch" && me ? me.band : null);
+  drawGlobe($("#globe"), G);
   if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && G) drawGlobe($("#globe"), G); }).catch(() => {}); }
 }
 setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);                                   // bands get stamped and the sun moves

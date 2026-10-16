@@ -146,6 +146,14 @@ async function stampsOf(ctx, lap) {
 
 // ---------- routes ----------
 
+// Laps in a row this player has stamped, counting back from `last` (a lap number).
+async function streakOf(ctx, playerId, last) {
+  if (last < 1) return 0;
+  const rows = (await ctx.db.prepare("SELECT DISTINCT lap FROM ledger WHERE player_id = ? AND kind = 'stamp' AND lap <= ? ORDER BY lap DESC").bind(playerId, last).all()).results;
+  let n = 0; for (const r of rows) { if (r.lap !== last - n) break; n++; }
+  return n;
+}
+
 async function today(ctx) {
   const me = await player(ctx);
   const { launch, t } = ctx;
@@ -157,6 +165,7 @@ async function today(ctx) {
   out.band = { index: me.band, offset: B.offsetOf(me.band), label: B.bandLabel(me.band) };
   const w = B.windowFor(launch, me.band, t);
   out.window = w;
+  out.streak = await streakOf(ctx, me.id, w.open && (await ctx.db.prepare("SELECT 1 FROM ledger WHERE lap = ? AND player_id = ? AND kind = 'stamp'").bind(w.lap, me.id).first()) ? w.lap : w.lap - 1);
   if (w.open) {
     const mine = await ctx.db.prepare("SELECT 1 FROM ledger WHERE lap = ? AND player_id = ? AND kind = 'stamp'").bind(w.lap, me.id).first();
     out.stamped = !!mine;
@@ -301,7 +310,8 @@ async function account(ctx, known = null) {
   const passkeys = (await db.prepare("SELECT id, label, created_at, last_used_at FROM passkeys WHERE player_id = ? ORDER BY id").bind(me.id).all()).results;
   const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
   return { player: true, admin: !!me.admin, codes, passkeys, devices, names, signs: !!me.signs,
-    name: me.name_a ? { a: me.name_a, b: me.name_b, text: B.nameText(me.name_a, me.name_b) } : null };
+    name: me.name_a ? { a: me.name_a, b: me.name_b, text: B.nameText(me.name_a, me.name_b) } : null,
+    band: me.band == null ? null : { offset: B.offsetOf(me.band) } };
 }
 
 // Pick two words. Names are unique: if the pair is taken, nothing is saved and you get a free pair to try.

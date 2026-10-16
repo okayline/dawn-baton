@@ -85,14 +85,14 @@ function helpScreen() {
 
 // ---------- catch ----------
 const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
-const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())} &middot; ${new Date(t).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}` : `Open for ${dur(t - Date.now())} more`;
+const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
 setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
 function bandPicker(cur) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
   return `<div class="r"><select id="off">${o}</select><button id="setband">${cur == null ? "That's my band" : "Change"}</button></div>`;
 }
-function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) { G.dragged = false; G.auto = false; } load("catch"); refreshGlobe(); }; }
+function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) { G.dragged = false; G.auto = false; } load(curTab === "account" ? "account" : "catch"); refreshGlobe(); }; }
 
 function sunLine(sun) {
   if (!sun) return "";
@@ -128,7 +128,9 @@ function catchScreen(d) {
   if (!w.open) h += `<div class="m" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
   else h += (d.stamped ? `<div class="m">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div class="m" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`) + (d.sky ? `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>` : "");
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
-  h += `<div style="margin-top:8px">${bandPicker(d.band.offset)}</div></div>`;
+  h += `<div class="m">${hm(w.opensAt)} &ndash; ${hm(w.closesAt)} your time</div>`;
+  if (d.streak) h += `<div class="m" style="margin-top:6px">${d.streak} ${d.streak === 1 ? "lap" : "laps"} in a row</div>`;
+  h += `</div>`;
   if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it ended tomorrow morning.</div>`;
   else if (w.open) {
     h += `<div class="p">`;
@@ -337,6 +339,7 @@ function drawGlobe(cv, g) {
   const sp = proj(dec, sl); if (sp.c > 0) { ctx.font = Math.round(18 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.fillText("\u2600\uFE0F", sp.x, sp.y); }
 }
 const hslRgb = ([h, s, l]) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0) * 255, f(8) * 255, f(4) * 255]; };
+const bandNo = (i) => { const o = 12 - i; return o > 0 ? "+" + o : o < 0 ? "\u2212" + (-o) : "0"; };
 function drawStrip(bands, meBand) {                                // the whole lap flattened: where the baton is, and where you are
   const el = $("#strip"); if (meBand == null) { el.hidden = true; return; }
   const by = {}; bands.forEach((b) => by[b.band] = b);
@@ -345,7 +348,7 @@ function drawStrip(bands, meBand) {                                // the whole 
     bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9;
     return `<span data-b="${i}" style="grid-row:2;grid-column:${i + 1};display:flex;justify-content:center;align-items:center;padding:7px 0;cursor:pointer"><span style="width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span></span>`; };
   const lab = (i, row, text, color) => `<span class="m" style="grid-row:${row};grid-column:${i + 1};justify-self:${i < 2 ? "start" : i > 21 ? "end" : "center"};color:${color};font-size:12px;white-space:nowrap">${text}</span>`;
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:0;margin-top:4px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lab(meBand, 3, "Here", "var(--ink)")}</div>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:0;margin-top:4px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lead != null ? lab(lead, lead === meBand ? 4 : 3, bandNo(lead), "#ffd656") : ""}${lab(meBand, 3, "Here", "var(--ink)")}</div>`;
   el.hidden = false;
 }
 let G = null, spinRaf = 0;                                          // G: what the globe is showing right now
@@ -438,7 +441,7 @@ const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && nav
 const day = (s) => new Date(s * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
 function accountScreen(a) {
   const el = $("#account"), has = a.codes.length || a.passkeys.length;
-  el.innerHTML = `<div class="p"><p class="h">Your player</p>
+  el.innerHTML = `${a.band ? `<div class="p"><p class="h">Your band</p>${bandPicker(a.band.offset)}</div>` : ""}<div class="p"><p class="h">Your player</p>
     <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
     <div class="p"><p class="h">Your name</p>
       <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
@@ -459,6 +462,7 @@ function accountScreen(a) {
   const say = (t) => { $("#amsg").textContent = t; };
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
   const sel = (id) => $("#" + id);
+  wireBand();
   sel("nshuffle").onclick = async () => {                             // a random free pair, saved right away
     const A = a.names.adj || [], N = a.names.noun || [], signs = sel("nsigns").checked;
     let r = await api("name", { a: "adj:" + Math.floor(Math.random() * A.length), b: "noun:" + Math.floor(Math.random() * N.length), signs });

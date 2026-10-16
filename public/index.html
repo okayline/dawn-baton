@@ -145,12 +145,12 @@ function catchScreen(d) {
   const hear = $("#hear"); if (hear) {
     const label = hear.innerHTML; let on = false;
     const done = () => { on = false; hear.innerHTML = label; };
-    hear.onclick = () => {                                           // slow, one note every 0.9 s; a silence is a rest; a second click stops
+    hear.onclick = () => {                                           // one note every 0.55 s; a silence is a rest; a second click stops
       if (on) { stopSound(); return done(); }
       stopSound(); on = true; hear.innerHTML = "&#9632;";
       const notes = d.heard && d.heard.length ? d.heard : [d.prev && d.prev.note];
-      notes.forEach((n, i) => tone(n, i * 0.9, 0.8));
-      tuneTimer = setTimeout(done, notes.length * 900 + 300);
+      notes.forEach((n, i) => tone(n, i * 0.55, 0.5));
+      tuneTimer = setTimeout(done, notes.length * 550 + 300);
     };
   }
   const pass = $("#pass"); if (pass) pass.onclick = async () => { pass.disabled = true; const r = await api("stamp", pick); if (r.error) { $("#msg").textContent = r.error; pass.disabled = false; } else load("catch"); };
@@ -162,7 +162,7 @@ function ctxAudio() { try { ac = ac || new AudioContext(); if (ac.state === "sus
 function tone(note, delay = 0, dur = 0.6) {
   const a = note && ctxAudio(); if (!a) return;
   const o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime + delay;
-  o.frequency.value = note === "resolve" ? 261.6 : 370;
+  o.frequency.value = note === "resolve" ? 329.6 : 493.9;     // settle = E4, lean = B4 (the note that leans toward home)
   g.gain.setValueAtTime(0.15, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.05);
   live.add(o); o.onended = () => live.delete(o);
@@ -269,11 +269,8 @@ function accountScreen(a) {
     <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
     <div class="p"><p class="h">Your name</p>
       <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
-      <div class="r"><select id="na">${(a.names.adj || []).map((w, i) => `<option value="adj:${i}" ${a.name && a.name.a === "adj:" + i ? "selected" : ""}>${esc(w)}</option>`).join("")}</select>
-        <select id="nb">${(a.names.noun || []).map((w, i) => `<option value="noun:${i}" ${a.name && a.name.b === "noun:" + i ? "selected" : ""}>${esc(w)}</option>`).join("")}</select>
-        <button id="nshuffle">Shuffle</button><button id="nsave">Save name</button></div>
-      <label class="m" style="display:block;margin-top:8px"><input type="checkbox" id="nsigns" ${a.signs !== false ? "checked" : ""}> Show my name on my stamps (only after the lap is over)</label>
-      <div class="m" style="margin-top:4px">Two words, from lists. More words will unlock as you collect them.</div></div>
+      <div class="r"><button id="nshuffle">Shuffle</button></div>
+      <label class="m" style="display:block;margin-top:8px"><input type="checkbox" id="nsigns" ${a.signs !== false ? "checked" : ""}> Show my name on my stamps (only after the lap is over)</label></div>
     ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div><div style="margin-top:8px"><button id="dlcode">Download as a text file</button></div></div>` : ""}
     <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p><div class="m" style="margin-bottom:6px">A code you write down or keep in a file. It works on any browser.</div>
       ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
@@ -288,11 +285,11 @@ function accountScreen(a) {
     <div class="m" id="amsg"></div>`;
   const say = (t) => { $("#amsg").textContent = t; };
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
-  const sel = (id) => $("#" + id), pickRand = (id) => { const o = sel(id).options; sel(id).selectedIndex = Math.floor(Math.random() * o.length); };
-  sel("nshuffle").onclick = () => { pickRand("na"); pickRand("nb"); };
-  sel("nsave").onclick = async () => {
-    const r = await api("name", { a: sel("na").value, b: sel("nb").value, signs: sel("nsigns").checked });
-    if (r.suggestion) { sel("na").value = r.suggestion.a; sel("nb").value = r.suggestion.b; return say("That name is taken. We picked another: press Save name if you like it, or Shuffle."); }
+  const sel = (id) => $("#" + id);
+  sel("nshuffle").onclick = async () => {                             // a random free pair, saved right away
+    const A = a.names.adj || [], N = a.names.noun || [], signs = sel("nsigns").checked;
+    let r = await api("name", { a: "adj:" + Math.floor(Math.random() * A.length), b: "noun:" + Math.floor(Math.random() * N.length), signs });
+    if (r.suggestion) r = await api("name", { a: r.suggestion.a, b: r.suggestion.b, signs });
     if (r.error) return say(r.error);
     load("account");
   };

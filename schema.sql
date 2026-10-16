@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS players (
   id          INTEGER PRIMARY KEY,
   token_hash  TEXT NOT NULL UNIQUE,
   band        INTEGER,
+  band_set_at INTEGER,                      -- seconds; when the band was last set (a band changes once a week, see worker.js)
   admin       INTEGER NOT NULL DEFAULT 0,   -- 1 = can use the admin preview (X key); set by hand in the database
   name_a      TEXT,                         -- "adj:3": a name is two words from lists (see engine/baton.js)
   name_b      TEXT,                         -- "noun:7"

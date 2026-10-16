@@ -415,3 +415,24 @@ test("the band after hears the last three notes before it, oldest first, silence
   const first = browser(env); await first("/api/band", { offset: 12 }); at(0.5);
   assert.deepEqual((await first("/api/today")).data.heard, []);                 // nothing before the first band
 });
+
+test("a band can be fixed within the first hour, then is locked for a week", async () => {
+  const env = makeEnv(); const me = browser(env);
+  at(1); assert.equal((await me("/api/band", { offset: 3 })).status, 200);
+  at(1.5); assert.equal((await me("/api/band", { offset: 4 })).status, 200);         // inside the grace hour: a free fix
+  at(3); const locked = await me("/api/band", { offset: 5 });
+  assert.equal(locked.status, 403);
+  assert.equal((await me("/api/today")).data.band.offset, 4);
+  const acc = (await me("/api/account")).data;
+  assert.ok(acc.band.canChangeAt > t);                                              // the lock shows when it ends
+  assert.equal((await me("/api/band", { offset: 4 })).status, 200);                  // the same band is never an error
+  at(1 + 7 * 24 + 1); assert.equal((await me("/api/band", { offset: 5 })).status, 200);   // a week after the first pick
+  at(1 + 7 * 24 + 5); assert.equal((await me("/api/band", { offset: 6 })).status, 403);   // and locked again
+});
+
+test("a first-time player is offered the band their rough location is in", async () => {
+  const env = makeEnv({ GEO: { latitude: 19.7, longitude: -155.1 } }); const me = browser(env);   // Hilo
+  assert.equal((await me("/api/today")).data.suggest, -10);
+  await me("/api/band", { offset: -10 });
+  assert.equal((await me("/api/today")).data.suggest, undefined);
+});

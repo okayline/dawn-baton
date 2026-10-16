@@ -161,7 +161,7 @@ async function today(ctx) {
   const out = { version: VERSION, now: t, launch, lap: B.currentLap(launch, t), band: null, window: null, stamped: false, prev: null, sky: null,
     palette: B.COLORS, notes: B.NOTES, lists: B.LISTS, sun: null, heard: [], lastClosedLap: B.lastClosedLap(launch, t) };
   if (place) out.sun = sunReport(place.lat, place.lon, t);
-  if (!me || me.band == null) return out;
+  if (!me || me.band == null) { if (place) out.suggest = B.offsetOf(B.bandFromLon(place.lon)); return out; }       // a first-time player is offered the band their rough location is in
   out.band = { index: me.band, offset: B.offsetOf(me.band), label: B.bandLabel(me.band) };
   const w = B.windowFor(launch, me.band, t);
   out.window = w;
@@ -185,13 +185,27 @@ async function today(ctx) {
   return out;
 }
 
+const BAND_LOCK = 7 * 86400, BAND_GRACE = 3600;     // seconds: a band changes once a week, with an hour to fix a first-pick mistake
+// When this player may next change their band (ms), or null if they may now.
+function bandChangeAt(me, t) {
+  if (me.band == null || me.band_set_at == null) return null;
+  const now = sec(t);
+  if (now < me.band_set_at + BAND_GRACE || now >= me.band_set_at + BAND_LOCK) return null;
+  return (me.band_set_at + BAND_LOCK) * 1000;
+}
+
 async function setBand(ctx) {
   const body = await ctx.req.json().catch(() => ({}));
   const idx = body.offset != null ? B.bandFromOffset(body.offset) : null;
   if (idx == null) throw new Oops("Pick a solar offset from -11 to +12.");
   const me = await player(ctx, true);
-  await ctx.db.prepare("UPDATE players SET band = ?, seen_at = ? WHERE id = ?").bind(idx, sec(ctx.t), me.id).run();
-  return { band: { index: idx, offset: B.offsetOf(idx), label: B.bandLabel(idx) } };
+  const label = { band: { index: idx, offset: B.offsetOf(idx), label: B.bandLabel(idx) } };
+  if (me.band === idx) return label;                                  // same band: nothing changes
+  const at = bandChangeAt(me, ctx.t);
+  if (at) throw new Oops(`You can change your band again in ${Math.ceil((at - ctx.t) / 86400000)} day(s).`, 403);
+  const keep = me.band != null && me.band_set_at != null && sec(ctx.t) < me.band_set_at + BAND_GRACE;   // still fixing the first pick
+  await ctx.db.prepare("UPDATE players SET band = ?, band_set_at = ?, seen_at = ? WHERE id = ?").bind(idx, keep ? me.band_set_at : sec(ctx.t), sec(ctx.t), me.id).run();
+  return label;
 }
 
 async function stamp(ctx) {
@@ -311,7 +325,7 @@ async function account(ctx, known = null) {
   const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
   return { player: true, admin: !!me.admin, codes, passkeys, devices, names, signs: !!me.signs,
     name: me.name_a ? { a: me.name_a, b: me.name_b, text: B.nameText(me.name_a, me.name_b) } : null,
-    band: me.band == null ? null : { offset: B.offsetOf(me.band) } };
+    band: me.band == null ? null : { offset: B.offsetOf(me.band), canChangeAt: bandChangeAt(me, ctx.t) } };
 }
 
 // Pick two words. Names are unique: if the pair is taken, nothing is saved and you get a free pair to try.

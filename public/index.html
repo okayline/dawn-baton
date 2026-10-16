@@ -89,12 +89,12 @@ const cdText = (kind, t) => kind === "opens" ? `Opens in ${dur(t - Date.now())}`
 const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 setInterval(() => document.querySelectorAll("[data-clock]").forEach((e) => { e.textContent = clock(); }), 30000);
 setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
-function bandPicker(cur) {
+function bandPicker(cur, suggest) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
-  let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
-  return `<div class="r"><select id="off">${o}</select><button id="setband">${cur == null ? "That's my band" : "Change"}</button></div>`;
+  let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? suggest ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
+  return `<div class="r"><select id="off">${o}</select><button id="setband" ${cur == null ? "" : 'data-confirm="1"'}>${cur == null ? "That's my band" : "Change band"}</button></div>`;
 }
-function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) { G.dragged = false; G.auto = false; } load(curTab === "account" ? "account" : "catch"); refreshGlobe(); }; }
+function wireBand() { const b = $("#setband"); if (b) b.onclick = async () => { const v = +$("#off").value; if (b.dataset.confirm && !confirm(`Change your band to solar UTC${v >= 0 ? "+" : "-"}${Math.abs(v)}? You won't be able to change it again for a week.`)) return; const r = await api("band", { offset: +$("#off").value }); if (r.error) return alert(r.error); if (G) { G.dragged = false; G.auto = false; } load(curTab === "account" ? "account" : "catch"); refreshGlobe(); }; }
 
 function sunLine(sun) {
   if (!sun) return "";
@@ -125,7 +125,7 @@ function catchScreen(d) {
   if (d.version) $("#ver").textContent = "Dawn Baton v" + d.version;
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
-  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
+  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
   if (!w.open) h += `<div style="font-size:18px;font-weight:700" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
   else h += d.stamped ? `<div style="font-size:18px;font-weight:700">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
@@ -444,7 +444,7 @@ const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && nav
 const day = (s) => new Date(s * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
 function accountScreen(a) {
   const el = $("#account"), has = a.codes.length || a.passkeys.length;
-  el.innerHTML = `${a.band ? `<div class="p"><p class="h">Your band</p>${bandPicker(a.band.offset)}</div>` : ""}<div class="p"><p class="h">Your player</p>
+  el.innerHTML = `${a.band ? `<div class="p"><p class="h">Your band</p><div>solar UTC${a.band.offset >= 0 ? "+" : "-"}${Math.abs(a.band.offset)}</div>${a.band.canChangeAt ? `<div class="m" style="margin-top:4px">You can change it again on ${new Date(a.band.canChangeAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}.</div>` : `<div style="margin-top:8px"><button id="showband">Change band&hellip;</button></div><div id="bandwrap" hidden style="margin-top:8px">${bandPicker(a.band.offset)}</div>`}</div>` : ""}<div class="p"><p class="h">Your player</p>
     <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
     <div class="p"><p class="h">Your name</p>
       <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
@@ -465,7 +465,7 @@ function accountScreen(a) {
   const say = (t) => { $("#amsg").textContent = t; };
   const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
   const sel = (id) => $("#" + id);
-  wireBand();
+  wireBand(); if ($("#showband")) $("#showband").onclick = () => { $("#showband").hidden = true; $("#bandwrap").hidden = false; };
   sel("nshuffle").onclick = async () => {                             // a random free pair, saved right away
     const A = a.names.adj || [], N = a.names.noun || [], signs = sel("nsigns").checked;
     let r = await api("name", { a: "adj:" + Math.floor(Math.random() * A.length), b: "noun:" + Math.floor(Math.random() * N.length), signs });

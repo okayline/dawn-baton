@@ -398,7 +398,7 @@ async function refreshGlobe() {                                      // one glob
 setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
 setInterval(() => {                                                 // Catch only: the globe turns slowly (2 degrees a second, the way the Earth does) when nobody is touching it
   if (curTab !== "catch" || !G || G.pov !== "you" || document.hidden || Date.now() < busyUntil || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  G.lam -= 0.5 * Math.PI / 180; G.auto = true; drawGlobe($("#globe"), G);   // 4 redraws a second, half a degree each
+  G.lam -= 0.3 * Math.PI / 180; G.auto = true; drawGlobe($("#globe"), G);   // 4 redraws a second, half a degree each
 }, 250);
 (() => {                                                            // Catch only: drag the globe sideways, slowly (half speed). Up and down still scrolls the page.
   const cv = $("#globe"); let d = null, raf = 0;

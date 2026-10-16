@@ -125,7 +125,7 @@ function catchScreen(d) {
   if (d.version) $("#ver").textContent = "Dawn Baton v" + d.version;
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
-  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
+  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
   if (!w.open) h += `<div style="font-size:18px;font-weight:700" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
   else h += d.stamped ? `<div style="font-size:18px;font-weight:700">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;

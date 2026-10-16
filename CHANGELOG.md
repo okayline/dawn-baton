@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.14 — "Tune Your Band"
+**Thu Oct 15, 2026 · 3:45 PM HST**
+
+- **New players are offered the band their location is in,** already selected in the "Tune your band" card. Nothing is saved until they press the button.
+- **A band can only be changed once a week.** You get an hour after your first pick to fix a mistake. After that, Account shows when you can change it again.
+- **Changing your band takes a few steps:** in Account, tap "Change band…", pick one, press Change, then confirm.
+- **A README for players** with a longer How to Play.
+
 ## v0.13 — "Your Dawn"
 **Thu Oct 15, 2026 · 3:30 PM HST**
 

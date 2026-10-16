@@ -127,8 +127,8 @@ function catchScreen(d) {
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Find your band</p>${bandPicker(null)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
-  if (!w.open) h += `<div data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
-  else h += d.stamped ? `<div>${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
+  if (!w.open) h += `<div style="font-size:18px;font-weight:700" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
+  else h += d.stamped ? `<div style="font-size:18px;font-weight:700">${nextWindow({ open: false, opensAt: w.opensAt + 86400000 })}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
   h += `<div class="m">${esc(d.band.label).toUpperCase()}, <span data-clock>${clock()}</span> local time</div>`;
   if (w.open && d.sky) h += `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>`;
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";

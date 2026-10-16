@@ -30,7 +30,7 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
-<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div><div style="text-align:center;margin-top:8px"><button id="gback" hidden>Back to my band</button></div></div>
+<div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section>
 <footer class="m" id="ver" style="text-align:center;padding:8px 0 56px">Dawn Baton</footer>
 </main>
@@ -279,11 +279,16 @@ function drawGlobe(cv, g) {
     const sh = 0.4 + 0.6 * cl((sphi * sd + Math.cos(phi) * cd * Math.cos(lam - sl) + 0.12) / 0.24, 0, 1), c = col[i];
     data[k * 4] = c[0] * sh; data[k * 4 + 1] = c[1] * sh; data[k * 4 + 2] = c[2] * sh; data[k * 4 + 3] = 255;
   } }
+  const white = [];
   for (let k = 0; k < N * N - N - 1; k++) { const a = idx[k]; if (a < 0) continue;
     const e1 = idx[k + 1] >= 0 && idx[k + 1] !== a, e2 = idx[k + N] >= 0 && idx[k + N] !== a;
     if (e1 || e2) {
-      if (a === sel || (e1 && idx[k + 1] === sel) || (e2 && idx[k + N] === sel)) { data[k * 4] = data[k * 4 + 1] = data[k * 4 + 2] = 255; }   // the chosen band gets a white edge
+      if (a === sel || (e1 && idx[k + 1] === sel) || (e2 && idx[k + N] === sel)) white.push(k);   // the chosen band gets a white edge (painted below, thicker)
       else { data[k * 4] *= 0.35; data[k * 4 + 1] *= 0.35; data[k * 4 + 2] *= 0.35; } } }
+  const T = Math.round(2 * dpr), lo = -Math.floor(T / 2), hi = Math.ceil(T / 2);       // 2 screen pixels thick
+  for (const k of white) { const x0 = k % N, y0 = (k - x0) / N;
+    for (let oy = lo; oy < hi; oy++) for (let ox = lo; ox < hi; ox++) { const x = x0 + ox, y = y0 + oy; if (x < 0 || y < 0 || x >= N || y >= N) continue; const q = y * N + x;
+      if (idx[q] >= 0) data[q * 4] = data[q * 4 + 1] = data[q * 4 + 2] = 255; } }
   ctx.putImageData(img, 0, 0);
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = "rgba(140,140,155,0.7)"; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
   const proj = (phi, lam) => { const dl = lam - lam0; return { c: sp0 * Math.sin(phi) + cp0 * Math.cos(phi) * Math.cos(dl), x: cx + R * Math.cos(phi) * Math.sin(dl), y: cy - R * (cp0 * Math.sin(phi) - sp0 * Math.cos(phi) * Math.cos(dl)) }; };
@@ -317,10 +322,11 @@ function drawStrip(bands, meBand) {                                // the whole 
   const by = {}; bands.forEach((b) => by[b.band] = b);
   const opens = bands.filter((b) => b.status === "open").map((b) => b.band), lead = opens.length ? Math.max(...opens) : null;
   const dot = (i) => { const st = (by[i] || {}).status, me = i === meBand, bg = st === "open" ? "#ffd656" : st === "stamped" || st === "bot" ? "#4a78c8" : st === "unheld" ? "#22223a" : "transparent",
-    bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9;
-    return `<span style="grid-row:2;grid-column:${i + 1};justify-self:center;width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span>`; };
+    bd = me ? "2px solid #fff" : st === "waiting" || st === "unheld" ? "1px solid #6c6cff" : "1px solid " + bg, z = me ? 12 : 9,
+    go = me ? "home" : i === lead ? "baton" : "";                       // only these two are buttons; the cell is the tap target
+    return `<span ${go ? `data-go="${go}"` : ""} style="grid-row:2;grid-column:${i + 1};display:flex;justify-content:center;align-items:center;padding:7px 0;${go ? "cursor:pointer" : ""}"><span style="width:${z}px;height:${z}px;border-radius:50%;background:${bg};border:${bd}"></span></span>`; };
   const lab = (i, row, text, color) => `<span class="m" style="grid-row:${row};grid-column:${i + 1};justify-self:${i < 2 ? "start" : i > 21 ? "end" : "center"};color:${color};font-size:12px;white-space:nowrap">${text}</span>`;
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:4px;margin-top:10px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lab(meBand, 3, "you", "var(--ink)")}</div>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(24,1fr);align-items:center;row-gap:0;margin-top:4px;padding:0 4px">${Array.from({ length: 24 }, (_, i) => dot(i)).join("")}${lead != null ? lab(lead, 1, "baton", "#ffd656") : ""}${lab(meBand, 3, "Here", "var(--ink)")}</div>`;
   el.hidden = false;
 }
 let G = null, spinRaf = 0;                                          // G: what the globe is showing right now
@@ -363,7 +369,7 @@ async function refreshGlobe() {                                      // one glob
   const me = p.bands.find((b) => b.mine);
   if (curTab === "catch" && me) { G.lam = (12 - me.band) * 15 * Math.PI / 180; G.sel = me.band; G.pov = "you"; if (keep != null) { G.lam = keep; G.dragged = true; } }   // Catch: you in the middle, your band edged in white
   drawStrip(p.bands, curTab === "catch" && me ? me.band : null);
-  drawGlobe($("#globe"), G); $("#gback").hidden = !G.dragged;
+  drawGlobe($("#globe"), G);
   if (!WORLD && !worldAsked) { worldAsked = true; fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab !== "account" && G) drawGlobe($("#globe"), G); }).catch(() => {}); }
 }
 setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
@@ -375,12 +381,16 @@ setInterval(() => { if (curTab !== "payoff") refreshGlobe(); }, 30000);
     if (d == null) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2), R = cv.width / 2 - 4 * dpr, k = (cv.width / cv.getBoundingClientRect().width) / R * 0.5;   // canvas pixels per screen pixel, over the radius, at half speed
     G.lam -= (e.clientX - d) * k; d = e.clientX;
-    G.dragged = true; $("#gback").hidden = false; cancelAnimationFrame(spinRaf);
+    G.dragged = true; cancelAnimationFrame(spinRaf);
     if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawGlobe(cv, G); });
   });
   const stop = () => { d = null; };
   cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
-  $("#gback").onclick = () => { const me = (G && G.mine || []).indexOf(true); if (me < 0) return; G.dragged = false; $("#gback").hidden = true; spinTo((12 - me) * 15 * Math.PI / 180); };
+  $("#strip").onclick = (e) => {                                      // the white dot takes you home, the gold dot turns to the baton
+    const t = e.target.closest("[data-go]"); if (!t || !G) return; const rad = Math.PI / 180;
+    if (t.dataset.go === "home") { const me = (G.mine || []).indexOf(true); if (me < 0) return; G.dragged = false; spinTo((12 - me) * 15 * rad); }
+    else if (G.baton) { G.dragged = true; spinTo(((12 - G.baton.from) + (12 - G.baton.to)) / 2 * 15 * rad); }
+  };
 })();                                   // bands get stamped and the sun moves
 function planetScreen(p) {
   const el = $("#planet");

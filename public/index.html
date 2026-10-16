@@ -249,6 +249,7 @@ function payoffScreen(l) {
   if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; lapForGlobe = null; G = null; refreshGlobe(); return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
+  const myBox = me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : "";
   const nav = `<div class="r" style="justify-content:space-between;flex-wrap:nowrap"><button id="lprev" ${l.lap <= l.first ? "disabled" : ""} aria-label="Earlier lap">&#9664;</button>
     <div style="text-align:center"><b>Lap ${l.lap}</b><div class="m">${new Date(l.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</div></div>
     <button id="lnext" ${l.lap >= l.last ? "disabled" : ""} aria-label="Later lap">&#9654;</button></div>`;
@@ -258,7 +259,7 @@ function payoffScreen(l) {
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} settle</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} lean</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
     </div>
     ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px">${nextWindow(l.next)}</div></div>` : ""}
-    ${me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : ""}
+    <div id="top">${myBox}</div>
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
   lapForGlobe = l; G = null; refreshGlobe();                          // the globe shows this lap, in its players' colours
@@ -276,7 +277,10 @@ function payoffScreen(l) {
   let expanded = false; const more = $("#more");
   strandRender = (sel) => {                                         // start the list at the picked band; the entries after it keep their order, the earlier ones follow at the end
     let list = shown;
-    if (sel != null && shown.length) { const at = shown.findIndex((x) => x.band >= sel), i = at < 0 ? 0 : at; list = shown.slice(i).concat(shown.slice(0, i)); }
+    const pickd = sel != null ? shown.find((x) => x.band === sel) : null, take = pickd && !pickd.mine;   // a picked stamp takes over the top spot; yours drops into the list, still outlined
+    $("#top").innerHTML = take ? `<div class="p"><p class="h">${esc(pickd.label)}</p>${strand(pickd, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}</div>` : myBox;
+    if (take) { const i = shown.indexOf(pickd); list = shown.slice(i + 1).concat(shown.slice(0, i)); }
+    else if (sel != null && shown.length) { const at = shown.findIndex((x) => x.band >= sel), i = at < 0 ? 0 : at; list = shown.slice(i).concat(shown.slice(0, i)); }
     $("#sl").innerHTML = (expanded ? list : list.slice(0, 6)).map((x) => strand(x, x.mine)).join("");
   };
   if (more) more.onclick = () => { expanded = true; strandRender(G && G.sel); more.remove(); };

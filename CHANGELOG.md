@@ -4,6 +4,13 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.12 — "How To"
+**Thu Oct 15, 2026 · 3:20 PM HST**
+
+- **A How to Play page.** Tap "How to Play" next to the version at the bottom of any screen. Five short cards: what the game is, your band, catching the baton, Yesterday and the globe.
+- **Bands the baton hasn't reached yet are pale gray** on the globe, so they no longer look like night.
+- **The sun on the globe is a little ☀️** instead of a white ring, so white only ever means you.
+
 ## v0.11 — "Slow Turn"
 **Thu Oct 15, 2026 · 3:05 PM HST**
 

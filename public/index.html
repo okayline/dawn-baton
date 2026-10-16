@@ -254,7 +254,7 @@ function payoffScreen(l) {
 // ---------- planet ----------
 // The globe: the 24 solar bands on a sphere, shaded by where the real sun is, centred on the baton. Not draggable.
 const GLOBE_COL = { waiting: [56, 60, 112], open: [255, 214, 86], stamped: [74, 120, 200], bot: [74, 120, 200], unheld: [22, 22, 46] };
-let globeBands = null, globeTimer = null;
+let globeBands = null, globeTimer = null, WORLD = null;   // WORLD: country outlines from /world.json (Natural Earth style, public domain)
 function drawGlobe(cv, bands) {
   const rad = Math.PI / 180, dpr = Math.min(window.devicePixelRatio || 1, 2), N = Math.round(360 * dpr);   // whole pixels only
   cv.width = N; cv.height = N;
@@ -282,6 +282,13 @@ function drawGlobe(cv, bands) {
   ctx.putImageData(img, 0, 0);
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = "rgba(140,140,155,0.7)"; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
   const proj = (phi, lam) => { const dl = lam - lam0; return { c: sp0 * Math.sin(phi) + cp0 * Math.cos(phi) * Math.cos(dl), x: cx + R * Math.cos(phi) * Math.sin(dl), y: cy - R * (cp0 * Math.sin(phi) - sp0 * Math.cos(phi) * Math.cos(dl)) }; };
+  if (WORLD) {                                                      // light country outlines, only the half facing us
+    ctx.beginPath(); ctx.strokeStyle = "rgba(242,242,255,0.38)"; ctx.lineWidth = 1 * dpr; ctx.lineJoin = "round";
+    for (const ln of WORLD) { let on = false;
+      for (let j = 0; j < ln.length; j += 2) { const p = proj(ln[j + 1] * rad, ln[j] * rad);
+        if (p.c > 0.02) { if (on) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); on = true; } else on = false; } }
+    ctx.stroke();
+  }
   ctx.font = (11 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let i = 0; i < 24; i++) { const p = proj(0, (12 - i) * 15 * rad); if (p.c < 0.3) continue; const o = 12 - i, t = (o >= 0 ? "+" : "-") + Math.abs(o);
     ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,10,40,0.8)"; ctx.strokeText(t, p.x, p.y); ctx.fillStyle = (by[i] || {}).mine ? "#6be08a" : "#f2f2ff"; ctx.fillText(t, p.x, p.y); }
@@ -298,6 +305,7 @@ function planetScreen(p) {
     <div class="p"><p class="h">24 solar bands</p><div class="grid">${p.bands.map((b) => `<div class="cell ${b.status}${b.mine ? " mine" : ""}" title="${b.status}">${b.label.replace("solar UTC", "")}</div>`).join("")}</div>
     <div class="m" style="margin-top:8px">Yellow: open now &middot; blue: stamped &middot; dark: unheld &middot; green outline: you</div></div>`;
   globeBands = p.bands; drawGlobe($("#globe"), globeBands);
+  if (!WORLD) fetch("/world.json").then((x) => x.json()).then((w) => { WORLD = w; if (curTab === "planet" && $("#globe")) drawGlobe($("#globe"), globeBands); }).catch(() => {});
   clearInterval(globeTimer); globeTimer = setInterval(() => { if (curTab !== "planet") return clearInterval(globeTimer); drawGlobe($("#globe"), globeBands); }, 30000);   // the sun moves, so redraw now and then
 }
 

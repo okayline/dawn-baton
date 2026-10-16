@@ -90,10 +90,10 @@ export const PHRASES = [
   "Fresh day, let's go!", "Got your back.", "Let's goo!", "We got this.",
 ];
 export const FEELINGS = [
-  "sleepy", "hopeful", "restless", "calm",
-  "curious", "soft", "cranky", "sparkly",
-  "misty", "solid", "giddy", "fried",
-  "thankful", "a bit off",
+  "sleepy", "hopeful", "excited", "calm",
+  "curious", "soft", "vibey", "sparkly",
+  "cooked", "solid", "pretty good", "fried",
+  "blessed", "chill",
 ];
 export const GESTURES = [
   "mid-yawn", "singing to myself", "stretching like a cat", "dancing like nobody's watching",
@@ -101,9 +101,10 @@ export const GESTURES = [
   "eating cereal standing up", "daydreaming", "squinting at the sunrise", "pretending to be productive",
 ];
 export const SIGNOFFS = [
-  "a good song", "snacks, obviously", "one (1) plan", "my comfy hoodie",
+  "a good song", "snacks, obviously", "exactly (1) plan", "comfy hoodie",
   "zero expectations", "main character energy", "a long walk", "clean socks",
   "questionable confidence", "a little sunshine",
+  "blind faith", "a dollar and a dream", "a smile",
 ];
 export const LISTS = { phrase: PHRASES, feeling: FEELINGS, gesture: GESTURES, signoff: SIGNOFFS };
 

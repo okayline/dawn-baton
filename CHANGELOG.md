@@ -4,6 +4,15 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.10 — "Look Around"
+**Thu Oct 15, 2026 · 2:55 PM HST**
+
+- **The globe is on three screens now:** Catch, Yesterday and Planet (not Account), tilted a little so you can see the top of the world.
+- **On Catch the globe is centered on you,** with your band edged in white and the baton's bands edged in gold. If the baton is on the far side of the planet, its edges show as a dotted line. Drag it sideways, slowly, to look around.
+- **A row of 24 dots under the globe** shows the whole lap: gold is the baton, the white ring is "Here". Tap any dot to turn the globe to that band. The white dot takes you home.
+- **A countdown in "Your dawn":** "Opens in 5h 12m" before your window, "Open for 1h 40m more" during it, and your next window once you've passed the baton.
+- **On Yesterday the globe shows that lap in the colors its players picked.** Tap a band in the lap bar, or a stamp in the strand, and the globe turns to it.
+
 ## v0.9 — "The Big Picture"
 **Thu Oct 15, 2026 · 2:35 PM HST**
 

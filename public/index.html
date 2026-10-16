@@ -252,14 +252,53 @@ function payoffScreen(l) {
 }
 
 // ---------- planet ----------
+// The globe: the 24 solar bands on a sphere, shaded by where the real sun is, centred on the baton. Not draggable.
+const GLOBE_COL = { waiting: [56, 60, 112], open: [255, 214, 86], stamped: [74, 120, 200], bot: [74, 120, 200], unheld: [22, 22, 46] };
+let globeBands = null, globeTimer = null;
+function drawGlobe(cv, bands) {
+  const rad = Math.PI / 180, dpr = Math.min(window.devicePixelRatio || 1, 2), N = Math.round(360 * dpr);   // whole pixels only
+  cv.width = N; cv.height = N;
+  const ctx = cv.getContext("2d"), R = N / 2 - 4 * dpr, cx = N / 2, cy = N / 2, now = Date.now(), cl = (v, a, b) => Math.max(a, Math.min(b, v));
+  const by = {}; bands.forEach((b) => by[b.band] = b);
+  const lead = Math.max(-1, ...bands.filter((b) => b.status === "open").map((b) => b.band));
+  const last = Math.max(0, ...bands.filter((b) => b.status !== "waiting").map((b) => b.band));
+  const lam0 = (12 - (lead >= 0 ? lead : last)) * 15 * rad, phi0 = 20 * rad;
+  const col = []; for (let i = 0; i < 24; i++) { const c = GLOBE_COL[(by[i] || {}).status] || GLOBE_COL.waiting, t = i % 2 ? 1 : 0.9; col.push([c[0] * t, c[1] * t, c[2] * t]); }
+  const d = new Date(now), u = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600, doy = Math.floor((now - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000);
+  const dec = -23.44 * rad * Math.cos(2 * Math.PI * (doy + 10) / 365), sl = -(u - 12) * 15 * rad;
+  const sp0 = Math.sin(phi0), cp0 = Math.cos(phi0), sd = Math.sin(dec), cd = Math.cos(dec);
+  const img = ctx.createImageData(N, N), data = img.data, idx = new Int8Array(N * N);
+  for (let py = 0; py < N; py++) { const y = (cy - py) / R; for (let px = 0; px < N; px++) {
+    const x = (px - cx) / R, r2 = x * x + y * y, k = py * N + px;
+    if (r2 > 1) { idx[k] = -1; continue; }
+    const z = Math.sqrt(1 - r2), sphi = z * sp0 + y * cp0, phi = Math.asin(sphi), lam = lam0 + Math.atan2(x, z * cp0 - y * sp0);
+    const L = (((lam / rad + 180) % 360) + 360) % 360 - 180; let off = Math.round(L / 15); if (off === -12) off = 12;
+    const i = 12 - off; idx[k] = i;
+    const sh = 0.4 + 0.6 * cl((sphi * sd + Math.cos(phi) * cd * Math.cos(lam - sl) + 0.12) / 0.24, 0, 1), c = col[i];
+    data[k * 4] = c[0] * sh; data[k * 4 + 1] = c[1] * sh; data[k * 4 + 2] = c[2] * sh; data[k * 4 + 3] = 255;
+  } }
+  for (let k = 0; k < N * N - N - 1; k++) { const a = idx[k]; if (a < 0) continue;
+    if ((idx[k + 1] >= 0 && idx[k + 1] !== a) || (idx[k + N] >= 0 && idx[k + N] !== a)) { data[k * 4] *= 0.35; data[k * 4 + 1] *= 0.35; data[k * 4 + 2] *= 0.35; } }
+  ctx.putImageData(img, 0, 0);
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.strokeStyle = "rgba(140,140,155,0.7)"; ctx.lineWidth = 1.5 * dpr; ctx.stroke();
+  const proj = (phi, lam) => { const dl = lam - lam0; return { c: sp0 * Math.sin(phi) + cp0 * Math.cos(phi) * Math.cos(dl), x: cx + R * Math.cos(phi) * Math.sin(dl), y: cy - R * (cp0 * Math.sin(phi) - sp0 * Math.cos(phi) * Math.cos(dl)) }; };
+  ctx.font = (11 * dpr) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let i = 0; i < 24; i++) { const p = proj(0, (12 - i) * 15 * rad); if (p.c < 0.3) continue; const o = 12 - i, t = (o >= 0 ? "+" : "-") + Math.abs(o);
+    ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,10,40,0.8)"; ctx.strokeText(t, p.x, p.y); ctx.fillStyle = (by[i] || {}).mine ? "#6be08a" : "#f2f2ff"; ctx.fillText(t, p.x, p.y); }
+  const sp = proj(dec, sl); if (sp.c > 0) { ctx.beginPath(); ctx.arc(sp.x, sp.y, 6 * dpr, 0, 7); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr; ctx.stroke(); }
+}
 function planetScreen(p) {
   const el = $("#planet");
   if (!p.bands || !p.bands.length) { el.innerHTML = `<div class="p"><p class="h">The planet</p><div class="m">The first lap hasn't started.</div></div>`; return; }
   $("#lapno").textContent = `Lap ${p.lap}`;
   const n = (s) => p.bands.filter((b) => b.status === s).length;
   el.innerHTML = `<div class="p"><p class="h">The baton right now</p><div class="m">${n("stamped") + n("bot")} of 24 bands have stamped &middot; ${n("unheld")} unheld so far</div></div>
+    <div class="p"><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas>
+    <div class="m" style="margin-top:6px;text-align:center">The white ring is where the sun is straight overhead.</div></div>
     <div class="p"><p class="h">24 solar bands</p><div class="grid">${p.bands.map((b) => `<div class="cell ${b.status}${b.mine ? " mine" : ""}" title="${b.status}">${b.label.replace("solar UTC", "")}</div>`).join("")}</div>
     <div class="m" style="margin-top:8px">Yellow: open now &middot; blue: stamped &middot; dark: unheld &middot; green outline: you</div></div>`;
+  globeBands = p.bands; drawGlobe($("#globe"), globeBands);
+  clearInterval(globeTimer); globeTimer = setInterval(() => { if (curTab !== "planet") return clearInterval(globeTimer); drawGlobe($("#globe"), globeBands); }, 30000);   // the sun moves, so redraw now and then
 }
 
 // ---------- account: save codes and passkeys ----------

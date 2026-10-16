@@ -245,7 +245,7 @@ function payoffScreen(l) {
   tb.onclick = () => {                                              // a second click stops it
     if (playing) { stopSound(); return idle(); }
     stopSound(); playing = true; tb.textContent = "Stop the tune";
-    l.tune.forEach((n, i) => tone(noteFreq(l.lap, l.tune.slice(Math.max(0, i - 3), i), n), i * 0.25, 0.4));
+    l.tune.forEach((n, i) => tone(noteFreq(l.lap, l.tune.slice(0, i), n), i * 0.25, 0.4));   // the whole lap plays as one run from home
     tuneTimer = setTimeout(idle, l.tune.length * 250 + 300);
   };
   const more = $("#more"); if (more) more.onclick = () => { $("#sl").innerHTML = shown.map((x) => strand(x, x.mine)).join(""); more.remove(); };

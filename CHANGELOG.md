@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.15 — "Fresh Words"
+**Thu Oct 15, 2026 · 4:00 PM HST**
+
+- **Your stamps can't be followed from lap to lap anymore.** New stamps no longer carry anything that ties them to a player in the public record. Your own stamp and name still show up for you.
+- **The replies got a rewrite:** "Right back a'cha!", "Still half aslee--", "Hot coffee, good vibes.", "*warm wave*", "Rise and shine ☀️", "Let's goo!", "We got this." and more.
+- **Vibe check words:** excited, vibey, cooked, pretty good, blessed and chill.
+- **Three new answers for "What are you bringing today?":** blind faith, a dollar and a dream, and a smile.
+
 ## v0.14 — "Tune Your Band"
 **Thu Oct 15, 2026 · 3:45 PM HST**
 

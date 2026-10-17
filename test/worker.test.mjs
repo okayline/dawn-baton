@@ -24,12 +24,51 @@ function fakeD1() {
   return { prepare: (sql) => prep(sql), batch, raw: db };
 }
 
+
+// A stand-in for the shared accounts (the Accounts entrypoint of dungeon-items, tested there): same answers, kept in maps.
+// Codes are random; a "passkey" is any credential { id, account } that was registered. 10 wrong codes per address, then 429.
+export function fakeAccounts() {
+  let n = 0; const codes = new Map(), keys = new Map(), links = new Map(), tries = new Map(), imported = [];
+  const acct = new Set(), err = (error, status = 400) => ({ error, status });
+  const own = (id) => [...codes].filter(([, v]) => v.acct === id);
+  return {
+    imported, codes, links,
+    async createAccount() { acct.add(++n); return { accountId: n }; },
+    async addCode(id) {
+      if (own(id).length >= 5) return err("You have 5 save codes already. Forget one first.");
+      const A31 = "23456789ABCDEFGHJKMNPQRSTUVWXYZ", code = Array.from({ length: 5 }, () => Array.from({ length: 4 }, () => A31[Math.floor(Math.random() * 31)]).join("")).join("-");
+      codes.set(code.replace(/-/g, ""), { acct: id, id: codes.size + 1 }); return { code };
+    },
+    async importCode(id, h) { imported.push([id, h]); return { ok: true }; },
+    async removeCode(id, cid) { const e = [...codes].find(([, v]) => v.acct === id && v.id === cid); if (!e) return err("No such save code.", 404); codes.delete(e[0]); return { ok: true }; },
+    async loginCode({ code, ip }) {
+      const c = (tries.get(ip) || 0) + 1; tries.set(ip, c);
+      if (c > 10) return err("Too many tries. Wait 15 minutes and try again.", 429);
+      const v = codes.get(String(code).toUpperCase().replace(/[^A-Z0-9]/g, "")); return v ? { accountId: v.acct } : err("That save code didn't work. Check it and try again.", 404);
+    },
+    async info(id) { return { codes: own(id).map(([, v]) => ({ id: v.id, created_at: 1, last_used_at: null })), passkeys: [...keys].filter(([, v]) => v.acct === id).map(([k, v]) => ({ id: v.id, label: v.label })), games: [] }; },
+    async waysIn(id) { return own(id).length + [...keys].filter(([, v]) => v.acct === id).length; },
+    async playerFor(id, g) { return { playerId: links.get(id + "|" + g) ?? null }; },
+    async link(id, g, p) {
+      const taken = [...links].find(([k, v]) => k.endsWith("|" + g) && v === p);
+      if (links.has(id + "|" + g)) return { playerId: links.get(id + "|" + g), linked: links.get(id + "|" + g) === p };
+      if (taken) return { playerId: null, linked: false, taken: true };
+      links.set(id + "|" + g, p); return { playerId: p, linked: true };
+    },
+    async accountOf(g, p) { const e = [...links].find(([k, v]) => k.endsWith("|" + g) && v === p); return { accountId: e ? Number(e[0].split("|")[0]) : null }; },
+    async passkeyRegisterOptions({ accountId, origin }) { return { challenge: "c-" + accountId, origin }; },
+    async passkeyRegister({ accountId, credential, label }) { keys.set(credential.id, { acct: accountId, id: keys.size + 1, label }); return { ok: true }; },
+    async passkeyLoginOptions({ origin }) { return { challenge: "login", origin }; },
+    async passkeyLogin({ credential }) { const k = keys.get(credential?.id); return k ? { accountId: k.acct } : err("That passkey isn't saved here.", 400); },
+    async passkeyRemove(id, kid) { const e = [...keys].find(([, v]) => v.acct === id && v.id === kid); if (!e) return err("No such passkey.", 404); keys.delete(e[0]); return { ok: true }; },
+  };
+}
 const LAUNCH = "2026-01-01T18:00:00Z";
 const L = Date.parse(LAUNCH);
 let t = L;
 function makeEnv(extra = {}) {
   t = L;
-  return { DB: fakeD1(), LAUNCH_START: LAUNCH, BOTS: "0", clock: () => t, WEATHER: async () => "rain", ...extra };
+  return { DB: fakeD1(), ACCOUNTS: fakeAccounts(), LAUNCH_START: LAUNCH, BOTS: "0", clock: () => t, WEATHER: async () => "rain", ...extra };
 }
 const at = (hours) => { t = L + hours * B.HOUR; };
 
@@ -198,7 +237,7 @@ test("a stranger can't remove someone else's code or passkey", async () => {
 test("passkey options come back with a challenge, for adding and for logging in", async () => {
   const env = makeEnv(); const b = browser(env);
   const reg = (await b("/api/passkey", { action: "register_options" })).data;
-  assert.ok(reg.challenge && reg.rp.id === "baton.example" && reg.rp.name === "Dawn Baton");
+  assert.ok(reg.challenge && reg.origin === "https://baton.example");   // the site rules (RP ID 88x31.app) belong to the Accounts service
   const login = (await b("/api/passkey", { action: "login_options" })).data;
   assert.ok(login.challenge);
   assert.equal((await b("/api/passkey", { action: "login", credential: { id: "nope", response: {} } })).status, 400);
@@ -451,4 +490,30 @@ test("the public ledger never shows who stamped, but you still find your own sta
   const lap = (await me("/api/lap")).data;
   assert.equal(lap.yours.band, 12);                                    // your own stamp is still found
   assert.ok(lap.stamps.some((s) => s.mine && s.name));                 // and so is your name, on your stamp
+});
+
+test("a save code from before accounts still works once, moves to the account, and the old rows go", async () => {
+  const env = makeEnv(), a = browser(env);
+  await a("/api/band", { offset: 0 });                                       // makes player 1
+  const hash = "ab".repeat(32);
+  env.DB.raw.prepare("INSERT INTO save_codes (player_id, code_hash, created_at) VALUES (1, ?, 1)").run(hash);
+  await a("/api/account");                                                   // seeing the player moves the old code over
+  assert.deepEqual(env.ACCOUNTS.imported, [[1, hash]]);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM save_codes").get().n, 0);
+});
+
+test("logging in reuses the account's player here, and a passkey adds to the account and logs a new browser in", async () => {
+  const env = makeEnv(), a = browser(env);
+  await a("/api/band", { offset: 0 });
+  const { code } = (await a("/api/codes", { action: "new" })).data;          // player 1, account 1
+  const other = browser(env);
+  await other("/api/band", { offset: 0 });                                   // player 2, no account
+  assert.equal((await other("/api/load", { code })).status, 200);            // account 1 already has player 1 here
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM players").get().n, 2);
+  assert.equal(env.ACCOUNTS.links.get("1|dawn-baton"), 1);
+  assert.equal((await a("/api/passkey", { action: "register", label: "k", credential: { id: "key1" } })).status, 200);
+  const fresh = browser(env);
+  assert.equal((await fresh("/api/passkey", { action: "login", credential: { id: "key1" } })).status, 200);
+  assert.equal((await fresh("/api/account")).data.passkeys.length, 1);
+  assert.equal((await browser({ ...env, ACCOUNTS: undefined })("/api/codes", { action: "new" })).status, 503);
 });

@@ -10,6 +10,9 @@
     // create with: npx wrangler d1 create baton-db   (then paste its id here)
     { "binding": "DB", "database_name": "baton-db", "database_id": "9788d853-6b1b-417d-8eba-4aaccab3e66f" }
   ],
+  // save codes and passkeys: the shared Accounts service (the dungeon-items Worker, `Accounts` entrypoint; see its ACCOUNTS.md).
+  // dungeon-items must be deployed first.
+  "services": [{ "binding": "ACCOUNTS", "service": "dungeon-items", "entrypoint": "Accounts" }],
   "vars": {
     // When lap 1 starts: the date-line band's 06:00 solar sunrise, i.e. 18:00 UTC the day before.
     "LAUNCH_START": "2026-10-15T18:00:00Z",

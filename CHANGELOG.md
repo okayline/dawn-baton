@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.17 — "One Key"
+**Sat Oct 17, 2026 · 2:45 AM HST**
+
+- **Save codes and passkeys now come from one shared accounts system** with the other 88x31 games, so a passkey made on any `88x31.app` address will work on all of them. Your save code keeps working: it moves to your account the first time you're seen.
+- **Passkeys you made here before can't carry over** (a passkey belongs to the exact address it was made on), so make a new one. Your save code covers you until then.
+
 ## v0.16 — "Next Up"
 **Thu Oct 15, 2026 · 4:22 PM HST**
 

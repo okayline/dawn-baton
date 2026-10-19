@@ -42,7 +42,7 @@ Gold is the baton, white is you, and the ☀️ is where the sun is straight ove
 
 ## Getting back in
 
-Your game lives in your browser. In Account you can make a save code or add a passkey, and either one brings your band and stamps to another browser or device.
+Your player is kept in this browser. In Account you can make a save code or add a passkey, and either one brings your band and stamps to another browser or device. They come from the accounts shared by all the 88x31.app games, so one passkey works on all of them.
 
 ---
 
@@ -66,7 +66,7 @@ Set `LAUNCH_START` in `wrangler.jsonc` to when lap 1 begins (18:00 UTC, the date
 - `src/ledger.js`: the hash chain (kinds `lap`, `stamp`, `gap`), with the same chaining as the other games.
 - `src/worker.js`: the API. Lazily seals laps and unheld bands on each request.
 - `src/weather.js`: automatic sky via Open-Meteo, falls back to "unknown". Check its terms before earning money.
-- `src/saves.js`, `src/passkeys.js`: save codes and passkeys, ported from scoundrel.exe (log in on any device).
+- `src/saves.js`: cookie tokens, extra-device sessions and rate limits. Save codes and passkeys come from the shared Accounts service (dungeon-items, bound as `ACCOUNTS`); old save codes move to the account the first time their player is seen.
 - `public/index.html`: the screens (catch, yesterday, planet, account, how to play) and the globe.
 
 ## Not yet

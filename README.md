@@ -1,5 +1,9 @@
 # Dawn Baton
 
+
+A daily, asynchronous, persistent, cooperative, collaborative, real-world-clock-driven, server-authoritative, shared-world, planetary, time-gated, relay-style, check-in passing game with an hourly hash-chained ledger and a daily checkpoint written to a public cross-game registry.
+
+
 A daily check-in game about connecting with people through the Sun's real position.
 
 Every morning, a baton follows the sunrise around the planet. When it reaches your part of the world, you add a little something and pass it on to the next person, one band to the west.

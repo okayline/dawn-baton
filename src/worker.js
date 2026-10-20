@@ -157,6 +157,17 @@ async function batonCopy(ctx) {
 // entry count and that entry's fingerprint, which covers every entry before it. The registry is timestamped on Bitcoin, so
 // this ledger is too. The same lap always sends the same checkpoint, so a retry adds nothing there. Only a chain that
 // checks out is sent.
+// The finished lap in a few public facts for the registry's page (all of it shows on Yesterday already): how many people,
+// bots and unheld bands, the 24 colours as hex (null = no colour), and the tune, one letter a band: s settle, l lean, - silent.
+async function lapDetail(ctx, lap) {
+  const items = await stampsOf(ctx, lap);
+  const stamps = items.filter((r) => r.kind === "stamp");
+  const hex = (i) => { const c = B.COLORS[i]; if (!c) return null; const [h, sa, l] = c.hsl, s1 = sa / 100, l1 = l / 100, a = s1 * Math.min(l1, 1 - l1);
+    const f = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l1 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, "0"); };
+    return "#" + f(0) + f(8) + f(4); };
+  return { lap, people: stamps.filter((r) => !r.bot).length, bots: stamps.filter((r) => r.bot).length, unheld: items.length - stamps.length,
+    colors: items.map((r) => (r.color == null ? null : hex(r.color))), tune: items.map((r) => (r.note === "resolve" ? "s" : r.note === "tension" ? "l" : "-")).join("") };
+}
 const checkpointed = new WeakMap();   // per database: the last lap whose checkpoint the registry took
 async function ledgerCheckpoint(ctx) {
   const { db, env, launch, t } = ctx;
@@ -167,7 +178,7 @@ async function ledgerCheckpoint(ctx) {
   const rows = (await db.prepare("SELECT id, record, prev_hash, hash FROM ledger WHERE id <= ? ORDER BY id").bind(end.id).all()).results;
   const v = await verifyChain(rows);
   if (!v.ok) return console.error("The ledger is broken at entry " + v.at + ": no checkpoint sent.");
-  const r = await env.REGISTRY.checkpoint({ game: GAME, entries: rows.length, head: rows[rows.length - 1].hash });
+  const r = await env.REGISTRY.checkpoint({ game: GAME, entries: rows.length, head: rows[rows.length - 1].hash, detail: await lapDetail(ctx, lap) });
   if (r.error) return console.error("The registry refused lap " + lap + "'s checkpoint: " + r.error);
   checkpointed.set(db, lap);
 }

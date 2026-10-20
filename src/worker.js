@@ -7,7 +7,6 @@
 //   GET  /api/planet         the current lap: every band waiting / open / stamped / unheld (no contents)
 //   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked, and the lap's baton if it went to you
 //   GET  /api/ledger?before=&limit=   newest first; contents of unfinished laps are hidden
-//   GET  /api/ledger/head    { ok, entries, head }: the chain checked end to end, for the hourly outside timestamp (88x31-anchors)
 //   GET  /api/account        your save codes and passkeys (never the codes themselves)
 //   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
 //   POST /api/load {code}    become the player a save code belongs to on this device (log in)
@@ -34,7 +33,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
-  "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger, "GET /api/ledger/head": ledgerHead,
+  "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
   "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
   "POST /api/passkey": passkey, "POST /api/name": setName, "POST /api/logout": logout,
 };
@@ -54,6 +53,7 @@ export default {
       if (!Number.isFinite(ctx.launch)) return json({ error: "The server has no LAUNCH_START set." }, 500);
       await settle(ctx);
       try { await batonCopy(ctx); } catch (e) { console.error(e); }   // the registry being away never stops the game
+      try { await ledgerCheckpoint(ctx); } catch (e) { console.error(e); }
       const res = await route(ctx);
       return ctx.setCookie ? json(res.data ?? res, 200, { "set-cookie": ctx.setCookie }) : json(res.data ?? res);
     } catch (e) {
@@ -151,6 +151,25 @@ async function batonCopy(ctx) {
   const r = await env.REGISTRY.birth({ itemId: batonItem, game: GAME, playerId: holder, key: "lap:" + lap });
   if (r.error) return console.error("The registry refused lap " + lap + "'s baton: " + r.error);
   await db.prepare("INSERT OR IGNORE INTO lap_copies (lap, item_id, copy, player_id, made_at) VALUES (?,?,?,?,?)").bind(lap, batonItem, r.copy, holder, sec(t)).run();
+}
+
+// Once a day, when a lap closes, the ledger up to that lap's last band goes into the shared registry as a checkpoint: its
+// entry count and that entry's fingerprint, which covers every entry before it. The registry is timestamped on Bitcoin, so
+// this ledger is too. The same lap always sends the same checkpoint, so a retry adds nothing there. Only a chain that
+// checks out is sent.
+const checkpointed = new WeakMap();   // per database: the last lap whose checkpoint the registry took
+async function ledgerCheckpoint(ctx) {
+  const { db, env, launch, t } = ctx;
+  const lap = B.lastClosedLap(launch, t);
+  if (lap < 1 || checkpointed.get(db) === lap) return;
+  const end = await db.prepare("SELECT id FROM ledger WHERE lap = ? AND band = ? AND kind IN ('stamp','gap')").bind(lap, B.BANDS - 1).first();
+  if (!end) return;
+  const rows = (await db.prepare("SELECT id, record, prev_hash, hash FROM ledger WHERE id <= ? ORDER BY id").bind(end.id).all()).results;
+  const v = await verifyChain(rows);
+  if (!v.ok) return console.error("The ledger is broken at entry " + v.at + ": no checkpoint sent.");
+  const r = await env.REGISTRY.checkpoint({ game: GAME, entries: rows.length, head: rows[rows.length - 1].hash });
+  if (r.error) return console.error("The registry refused lap " + lap + "'s checkpoint: " + r.error);
+  checkpointed.set(db, lap);
 }
 
 // A bot's choices come from a hash of the lap and band: always the same, never random at read time.
@@ -348,13 +367,6 @@ async function ledger(ctx) {
       return r.lap <= last || r.kind === "lap" ? { ...open, record: r.record } : open;
     }),
   };
-}
-
-// The whole chain checked, and its newest fingerprint: what 88x31-anchors timestamps on Bitcoin every hour. No contents, no players.
-async function ledgerHead(ctx) {
-  const rows = (await ctx.db.prepare("SELECT id, record, prev_hash, hash FROM ledger ORDER BY id").all()).results;
-  const v = await verifyChain(rows);
-  return v.ok ? { ok: true, entries: rows.length, head: rows.length ? rows[rows.length - 1].hash : GENESIS } : { ok: false, broken_at: v.at };
 }
 
 // ---------- save codes and passkeys (kept by the shared Accounts service in dungeon-items) ----------

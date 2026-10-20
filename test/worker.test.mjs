@@ -66,9 +66,10 @@ export function fakeAccounts() {
 // A stand-in for the copy registry (the Registry entrypoint of dungeon-items, tested there): the baton is item 7, and a
 // key always gives back the copy it made.
 function fakeRegistry() {
-  const births = [], byKey = new Map();
+  const births = [], byKey = new Map(), checkpoints = [];
   return {
-    births,
+    births, checkpoints,
+    async checkpoint(a) { if (!checkpoints.some((c) => c.head === a.head)) checkpoints.push(a); return { ok: true, created: true }; },
     async itemIds(game, keys) { return game === "dawn-baton" && keys.includes("baton") ? { baton: 7 } : {}; },
     async birth(a) {
       if (byKey.has(a.key)) return { itemId: a.itemId, copy: byKey.get(a.key), created: false };
@@ -565,12 +566,13 @@ test("settle only goes to the database when a lap opens or a band's window close
   await me("/api/planet"); assert.equal(sweeps(), 2);
 });
 
-test("the ledger head is the whole chain checked: entries, newest fingerprint, nothing else; a broken chain says where", async () => {
+test("when a lap closes, the ledger up to its last band is checkpointed in the shared registry, once", async () => {
   const env = makeEnv(); const me = browser(env);
-  await me("/api/band", { offset: 0 }); at(12.5); await me("/api/stamp", { color: 9 }); at(14);
-  const h = (await me("/api/ledger/head")).data;
+  at(24.5); await me("/api/planet");
+  assert.equal(env.REGISTRY.checkpoints.length, 0);                          // lap 1 still open
+  at(26); await me("/api/planet"); await me("/api/planet");
   const rows = env.DB.raw.prepare("SELECT id, hash FROM ledger ORDER BY id").all();
-  assert.deepEqual(h, { ok: true, entries: rows.length, head: rows[rows.length - 1].hash });
-  env.DB.raw.exec("UPDATE ledger SET record = '{}' WHERE id = 3");
-  assert.deepEqual((await me("/api/ledger/head")).data, { ok: false, broken_at: 3 });
+  const end = env.DB.raw.prepare("SELECT id FROM ledger WHERE lap = 1 AND band = 23").get().id;
+  const upTo = rows.filter((r) => r.id <= end);
+  assert.deepEqual(env.REGISTRY.checkpoints, [{ game: "dawn-baton", entries: upTo.length, head: upTo[upTo.length - 1].hash }]);
 });

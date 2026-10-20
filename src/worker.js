@@ -97,9 +97,16 @@ async function player(ctx, create = false) {
 
 // Lazily seal: laps opening, and every band whose window has ended with nobody holding it
 // (a bot's stamp when BOTS=1, otherwise an "unheld" gap). Safe to run on every request.
+// What settle() has already done in this Worker, per database: it only has work when a lap opens or a band's window closes,
+// so a request in between skips its database trips. Sealing is safe to repeat, so a stale or missing memory only costs speed.
+const settled = new WeakMap();
 async function settle(ctx) {
   const { db, t, launch, env } = ctx;
   const cur = B.currentLap(launch, t);
+  let closed = 0;
+  for (let lap = Math.max(1, cur - 1); lap <= cur; lap++) for (let i = 0; i < B.BANDS; i++) if (t >= B.closesAt(launch, lap, i)) closed++;
+  const key = cur + ":" + closed;
+  if (settled.get(db) === key) return;
   for (let lap = Math.max(1, cur - 1); lap <= cur; lap++) {
     await seal(db, { kind: "lap", lap, record: lapRecord({ lap, startsAt: B.lapStart(launch, lap) }), t: sec(B.lapStart(launch, lap)) });
     const have = new Set((await db.prepare("SELECT band FROM ledger WHERE lap = ? AND kind IN ('stamp','gap')").bind(lap).all()).results.map((r) => r.band));
@@ -114,6 +121,7 @@ async function settle(ctx) {
       }
     }
   }
+  settled.set(db, key);
 }
 
 // ---------- the baton in the shared registry ----------
@@ -123,13 +131,16 @@ async function settle(ctx) {
 // One lap per request, oldest first. The registry key lap:<n> means a retry never makes a second copy. A registry that's
 // down, or doesn't have the baton yet, never stops the game: the next request tries again.
 let batonItem = null;
+const batonDone = new WeakMap();   // per database: the last closed lap that had no baton left to make (a closed lap never gains a stamper)
 async function batonCopy(ctx) {
   const { db, env, launch, t } = ctx;
+  const closedLap = B.lastClosedLap(launch, t);
+  if (batonDone.get(db) === closedLap) return;
   const row = await db.prepare(
     `SELECT MIN(lap) AS lap FROM ledger WHERE kind = 'stamp' AND player_id IS NOT NULL AND lap <= ?
        AND lap IN (SELECT lap FROM ledger WHERE band = ? AND kind IN ('stamp','gap')) AND lap NOT IN (SELECT lap FROM lap_copies)`)
-    .bind(B.lastClosedLap(launch, t), B.BANDS - 1).first();
-  if (!row || row.lap == null) return;
+    .bind(closedLap, B.BANDS - 1).first();
+  if (!row || row.lap == null) { batonDone.set(db, closedLap); return; }
   const lap = row.lap;
   const people = (await db.prepare("SELECT player_id FROM ledger WHERE lap = ? AND kind = 'stamp' AND player_id IS NOT NULL ORDER BY band").bind(lap).all()).results;
   const end = await db.prepare("SELECT hash FROM ledger WHERE lap = ? AND band = ? AND kind IN ('stamp','gap')").bind(lap, B.BANDS - 1).first();

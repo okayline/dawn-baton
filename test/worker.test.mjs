@@ -553,3 +553,14 @@ test("a held lap makes one baton copy in the registry, for one of its stampers p
   await a("/api/today");
   assert.equal(env.REGISTRY.births.length, 1);
 });
+
+test("settle only goes to the database when a lap opens or a band's window closes", async () => {
+  const env = makeEnv(); const log = [], real = env.DB;
+  env.DB = { prepare: (sql) => { log.push(sql); return real.prepare(sql); }, batch: real.batch, raw: real.raw };
+  const sweeps = () => log.filter((q) => q.startsWith("SELECT band FROM ledger WHERE lap = ?")).length;   // settle's look at which bands are sealed
+  const me = browser(env);
+  at(5); await me("/api/planet"); assert.equal(sweeps(), 1);
+  at(5.5); await me("/api/planet"); assert.equal(sweeps(), 1);          // nothing closed in between: no trips
+  at(7.5); await me("/api/planet"); assert.equal(sweeps(), 2);          // bands 0 to 5 closed in between: one more sweep
+  await me("/api/planet"); assert.equal(sweeps(), 2);
+});

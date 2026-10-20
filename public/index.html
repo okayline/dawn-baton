@@ -64,6 +64,7 @@ function show(t) {
   load(t); refreshGlobe();
 }
 async function load(which) {
+  const sec = $("#" + which); if (sec && !PV && !sec.firstChild) sec.innerHTML = '<div class="p"><div class="m">Loading&hellip;</div></div>';   // a tab never sits blank while its data comes
   const fx = PV && PV.screen === which ? fixture(which, PV.scenario) : PV ? fixture(which, DEFAULT[which]) : null;
   if (which === "catch") return catchScreen(fx || await api("today"));
   if (which === "payoff") return payoffScreen(fx || await api("lap" + (lapN ? "?n=" + lapN : "")));
@@ -107,10 +108,14 @@ async function ledgerScreen(before) {
 
 // ---------- catch ----------
 const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
-const cdText = (kind, t) => kind === "next" ? `Your next window is in ${dur(t - Date.now())} at ${hm(t)}.` : kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
+// "Opens in" counts to the millisecond (h, m, s and ms; the other countdowns stay at whole minutes)
+const durMs = (ms) => { ms = Math.max(0, Math.floor(ms)); const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), pad = (n, w) => String(n).padStart(w, "0");
+  return (h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h ` : h ? `${h}h ` : "") + (h || m ? `${pad(m, 2)}m ` : "") + `${pad(s % 60, 2)}.${pad(ms % 1000, 3)}s`; };
+const cdText = (kind, t) => kind === "next" ? `Your next window is in ${dur(t - Date.now())} at ${hm(t)}.` : kind === "opens" ? `Opens in ${durMs(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
 const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 setInterval(() => document.querySelectorAll("[data-clock]").forEach((e) => { e.textContent = clock(); }), 30000);
-setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
+setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);
+setInterval(() => { if (!document.hidden) document.querySelectorAll('[data-cd="opens"]').forEach((e) => { e.textContent = cdText("opens", +e.dataset.t); }); }, 47);   // the "Opens in" countdown runs to the millisecond   // the countdown ticks without redrawing the screen
 function bandPicker(cur, suggest) {
   const here = Math.max(-11, Math.min(12, Math.round(-new Date().getTimezoneOffset() / 60)));
   let o = ""; for (let i = 12; i >= -11; i--) o += `<option value="${i}" ${i === (cur ?? suggest ?? here) ? "selected" : ""}>solar UTC${i >= 0 ? "+" : "-"}${Math.abs(i)}</option>`;
@@ -149,7 +154,7 @@ function catchScreen(d) {
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
-  if (!w.open) h += `<div style="font-size:18px;font-weight:700" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
+  if (!w.open) h += `<div style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
   else h += d.stamped ? `<div style="font-size:18px;font-weight:700" data-cd="next" data-t="${w.opensAt + 86400000}">${cdText("next", w.opensAt + 86400000)}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
   h += `<div class="m">${esc(d.band.label).toUpperCase()}, <span data-clock>${clock()}</span> local time</div>`;
   if (w.open && d.sky) h += `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>`;

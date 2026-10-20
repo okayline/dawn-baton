@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.21 — "Quick Dawn"
+**Tue Oct 20, 2026 · 12:51 AM HST**
+
+- **Tabs open faster.** The game no longer redoes its end-of-window housekeeping on every tap, only when a lap opens or a band's window closes. A tab now says "Loading…" the moment you tap it, instead of staying blank.
+- **"Opens in" counts to the millisecond** on Catch: hours, minutes, seconds and thousandths.
+
 ## v0.20 — "Keepsake"
 **Tue Oct 20, 2026 · 12:26 AM HST**
 

@@ -96,7 +96,7 @@ function ledgerLine(e) {
 }
 async function ledgerScreen(before) {
   const d = PV ? { entries: [] } : await api("ledger?limit=40" + (before ? "&before=" + before : ""));
-  const rows = (d.entries || []).map((e) => `<div class="strand" style="cursor:default"><div>#${e.id} ${esc(ledgerLine(e))}</div><div class="m">${new Date(e.created_at * 1000).toLocaleDateString()} &middot; prev ${esc(e.prev_hash.slice(0, 12))} &middot; hash ${esc(e.hash.slice(0, 12))}</div></div>`).join("");
+  const rows = (d.entries || []).map((e) => `<div class="strand" style="cursor:default"><div>#${e.id} ${esc(ledgerLine(e))}</div><div class="m">${new Date(e.created_at * 1000).toLocaleString()} &middot; prev ${esc(e.prev_hash.slice(0, 12))} &middot; hash ${esc(e.hash.slice(0, 12))}</div></div>`).join("");
   const last = d.entries && d.entries.length === 40 ? d.entries[39].id : null;
   const box = $("#ledger");
   if (!before) box.innerHTML = `<div class="p"><div class="h">Ledger</div><div id="lrows">${rows || '<div class="m">Nothing yet.</div>'}</div><div id="lmore"></div></div>`;

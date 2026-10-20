@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.19 — "Twenty-Four"
+**Mon Oct 19, 2026 · 8:15 PM HST**
+
+- **Times are 24-hour now.** The window times and the ledger show 24-hour time, like the other games.
+
 ## v0.18 — "Open Book"
 **Mon Oct 19, 2026 · 8:00 PM HST**
 

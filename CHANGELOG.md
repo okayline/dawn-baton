@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.18 — "Open Book"
+**Mon Oct 19, 2026 · 8:00 PM HST**
+
+- **The ledger is open.** A new Ledger link in the footer lists every lap, stamp and unheld band, newest first, with the exact date and time and the fingerprints that chain them together. What someone picked stays hidden until its lap is over.
+
 ## v0.17 — "One Key"
 **Sat Oct 17, 2026 · 2:45 AM HST**
 

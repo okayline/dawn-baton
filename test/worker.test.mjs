@@ -564,3 +564,13 @@ test("settle only goes to the database when a lap opens or a band's window close
   at(7.5); await me("/api/planet"); assert.equal(sweeps(), 2);          // bands 0 to 5 closed in between: one more sweep
   await me("/api/planet"); assert.equal(sweeps(), 2);
 });
+
+test("the ledger head is the whole chain checked: entries, newest fingerprint, nothing else; a broken chain says where", async () => {
+  const env = makeEnv(); const me = browser(env);
+  await me("/api/band", { offset: 0 }); at(12.5); await me("/api/stamp", { color: 9 }); at(14);
+  const h = (await me("/api/ledger/head")).data;
+  const rows = env.DB.raw.prepare("SELECT id, hash FROM ledger ORDER BY id").all();
+  assert.deepEqual(h, { ok: true, entries: rows.length, head: rows[rows.length - 1].hash });
+  env.DB.raw.exec("UPDATE ledger SET record = '{}' WHERE id = 3");
+  assert.deepEqual((await me("/api/ledger/head")).data, { ok: false, broken_at: 3 });
+});

@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.23 — "Proof of Dawn"
+**Tue Oct 20, 2026 · 2:22 AM HST**
+
+- **The ledger is now timestamped on Bitcoin every hour,** like the 88x31 ledger and the shared item registry already are. Anyone can later check that no lap, stamp or unheld band was changed after the fact. Nothing about a player is included, only the ledger's newest fingerprint.
+
 ## v0.22 — "Quick Key"
 **Tue Oct 20, 2026 · 1:18 AM HST**
 

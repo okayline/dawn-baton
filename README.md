@@ -69,9 +69,10 @@ Set `LAUNCH_START` in `wrangler.jsonc` to when lap 1 begins (18:00 UTC, the date
 - `src/worker.js`: the API. Lazily seals laps and unheld bands on each request.
 - `src/weather.js`: automatic sky via Open-Meteo, falls back to "unknown". Check its terms before earning money.
 - The registry (`REGISTRY`, dungeon-items' `Registry` entrypoint): each closed lap that a person held makes one copy of The Dawn Baton (`batonCopy` in `src/worker.js`, `lap_copies` in `schema.sql`).
+- `GET /api/ledger/head` (`ledgerHead` in `src/worker.js`): the whole chain checked, `{ ok, entries, head }`. The 88x31-anchors repo timestamps it on Bitcoin every hour (receipts in its `dawn-baton/` folder).
 - `src/saves.js`: cookie tokens, extra-device sessions and rate limits. Save codes and passkeys come from the shared Accounts service (dungeon-items, bound as `ACCOUNTS`); old save codes move to the account the first time their player is seen.
 - `public/index.html`: the screens (catch, yesterday, planet, account, how to play) and the globe.
 
 ## Not yet
 
-The word codex, gated calendar words, hourly OpenTimestamps anchoring, the Dungeon connections.
+The word codex, gated calendar words, the Dungeon connections.

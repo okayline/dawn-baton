@@ -7,6 +7,7 @@
 //   GET  /api/planet         the current lap: every band waiting / open / stamped / unheld (no contents)
 //   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked, and the lap's baton if it went to you
 //   GET  /api/ledger?before=&limit=   newest first; contents of unfinished laps are hidden
+//   GET  /api/ledger/head    { ok, entries, head }: the chain checked end to end, for the hourly outside timestamp (88x31-anchors)
 //   GET  /api/account        your save codes and passkeys (never the codes themselves)
 //   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
 //   POST /api/load {code}    become the player a save code belongs to on this device (log in)
@@ -33,7 +34,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
-  "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
+  "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger, "GET /api/ledger/head": ledgerHead,
   "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
   "POST /api/passkey": passkey, "POST /api/name": setName, "POST /api/logout": logout,
 };
@@ -347,6 +348,13 @@ async function ledger(ctx) {
       return r.lap <= last || r.kind === "lap" ? { ...open, record: r.record } : open;
     }),
   };
+}
+
+// The whole chain checked, and its newest fingerprint: what 88x31-anchors timestamps on Bitcoin every hour. No contents, no players.
+async function ledgerHead(ctx) {
+  const rows = (await ctx.db.prepare("SELECT id, record, prev_hash, hash FROM ledger ORDER BY id").all()).results;
+  const v = await verifyChain(rows);
+  return v.ok ? { ok: true, entries: rows.length, head: rows.length ? rows[rows.length - 1].hash : GENESIS } : { ok: false, broken_at: v.at };
 }
 
 // ---------- save codes and passkeys (kept by the shared Accounts service in dungeon-items) ----------

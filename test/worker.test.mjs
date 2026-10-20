@@ -575,15 +575,15 @@ test("when a lap closes, the ledger up to its last band is checkpointed in the s
   const end = env.DB.raw.prepare("SELECT id FROM ledger WHERE lap = 1 AND band = 23").get().id;
   const upTo = rows.filter((r) => r.id <= end);
   assert.deepEqual(env.REGISTRY.checkpoints, [{ game: "dawn-baton", entries: upTo.length, head: upTo[upTo.length - 1].hash,
-    detail: { lap: 1, people: 0, bots: 0, unheld: 24, colors: Array(24).fill(null), tune: "-".repeat(24) } }]);
+    detail: { lap: 1, people: 0, unheld: 24, colors: Array(24).fill(null), tune: "-".repeat(24) } }]);
 });
 
-test("the lap's checkpoint detail: people, bots, unheld, the colours as hex and the tune", async () => {
+test("the lap's checkpoint detail: people, unheld (no bot count), the colours as hex and the tune", async () => {
   const env = makeEnv({ BOTS: "1" }); const me = browser(env);
   await me("/api/band", { offset: 0 }); at(12.5); await me("/api/stamp", { color: 0, note: "tension" });   // ember: hsl(8, 62%, 60%)
   at(26); await me("/api/planet");
   const d = env.REGISTRY.checkpoints[0].detail;
-  assert.deepEqual([d.lap, d.people, d.bots, d.unheld], [1, 1, 23, 0]);
+  assert.deepEqual([d.lap, d.people, d.unheld, "bots" in d], [1, 1, 0, false]);
   assert.equal(d.colors[12], "#d86b5a");     // hsl(8, 62%, 60%), worked out with Python colorsys
   assert.equal(d.tune[12], "l");
   assert.equal(d.tune.length, 24);

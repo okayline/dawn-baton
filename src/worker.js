@@ -165,7 +165,7 @@ async function lapDetail(ctx, lap) {
   const hex = (i) => { const c = B.COLORS[i]; if (!c) return null; const [h, sa, l] = c.hsl, s1 = sa / 100, l1 = l / 100, a = s1 * Math.min(l1, 1 - l1);
     const f = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l1 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, "0"); };
     return "#" + f(0) + f(8) + f(4); };
-  return { lap, people: stamps.filter((r) => !r.bot).length, bots: stamps.filter((r) => r.bot).length, unheld: items.length - stamps.length,
+  return { lap, people: stamps.filter((r) => !r.bot).length, unheld: items.length - stamps.length,
     colors: items.map((r) => (r.color == null ? null : hex(r.color))), tune: items.map((r) => (r.note === "resolve" ? "s" : r.note === "tension" ? "l" : "-")).join("") };
 }
 const checkpointed = new WeakMap();   // per database: the last lap whose checkpoint the registry took

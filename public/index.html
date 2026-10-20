@@ -39,7 +39,7 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 const $ = (s) => document.querySelector(s);
 const SKY = { clear: "Clear", cloud: "Overcast", fog: "Fog", drizzle: "Drizzle", rain: "Rain", snow: "Snow", storm: "Storm", unknown: "Unknown sky" };
 const hsl = (c) => c == null ? "#0b0b2b" : `hsl(${c.hsl[0]},${c.hsl[1]}%,${c.hsl[2]}%)`;
-const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const hm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });   // times are always 24-hour
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const NOTE_WORD = { resolve: "Settle", tension: "Lean" };   // what players see; the stored values stay resolve/tension
@@ -96,7 +96,7 @@ function ledgerLine(e) {
 }
 async function ledgerScreen(before) {
   const d = PV ? { entries: [] } : await api("ledger?limit=40" + (before ? "&before=" + before : ""));
-  const rows = (d.entries || []).map((e) => `<div class="strand" style="cursor:default"><div>#${e.id} ${esc(ledgerLine(e))}</div><div class="m">${new Date(e.created_at * 1000).toLocaleString()} &middot; prev ${esc(e.prev_hash.slice(0, 12))} &middot; hash ${esc(e.hash.slice(0, 12))}</div></div>`).join("");
+  const rows = (d.entries || []).map((e) => `<div class="strand" style="cursor:default"><div>#${e.id} ${esc(ledgerLine(e))}</div><div class="m">${new Date(e.created_at * 1000).toLocaleString([], { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })} &middot; prev ${esc(e.prev_hash.slice(0, 12))} &middot; hash ${esc(e.hash.slice(0, 12))}</div></div>`).join("");
   const last = d.entries && d.entries.length === 40 ? d.entries[39].id : null;
   const box = $("#ledger");
   if (!before) box.innerHTML = `<div class="p"><div class="h">Ledger</div><div id="lrows">${rows || '<div class="m">Nothing yet.</div>'}</div><div id="lmore"></div></div>`;
@@ -108,7 +108,7 @@ async function ledgerScreen(before) {
 // ---------- catch ----------
 const dur = (ms) => { const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${String(m % 60).padStart(2, "0")}m` : `${m}m`; };
 const cdText = (kind, t) => kind === "next" ? `Your next window is in ${dur(t - Date.now())} at ${hm(t)}.` : kind === "opens" ? `Opens in ${dur(t - Date.now())}` : `Open for ${dur(t - Date.now())} more`;
-const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 setInterval(() => document.querySelectorAll("[data-clock]").forEach((e) => { e.textContent = clock(); }), 30000);
 setInterval(() => document.querySelectorAll("[data-cd]").forEach((e) => { e.innerHTML = cdText(e.dataset.cd, +e.dataset.t); }), 30000);   // the countdown ticks without redrawing the screen
 function bandPicker(cur, suggest) {
@@ -246,7 +246,7 @@ const NOTE_ICON = {
 };
 const noteIcon = (st, size = 14) => st.kind === "gap" ? `<svg viewBox="0 0 16 16" width="${size}" height="${size}"><path d="M3.5 8h9" stroke="#4a4aa0" stroke-width="1.8" stroke-linecap="round" opacity=".7"/></svg>`
   : `<svg viewBox="0 0 16 16" width="${size}" height="${size}">${NOTE_ICON[st.note || "silence"]}</svg>`;
-const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+const hms = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 const inWindow = (st) => { const m = Math.max(0, Math.round((st.t * 1000 - st.opensAt) / 60000)); return m < 1 ? "as the window opened" : `${m} min into the window`; };
 function strand(st, me) {
   const t = words(st);

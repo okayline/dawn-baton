@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.22 — "Quick Key"
+**Tue Oct 20, 2026 · 1:18 AM HST**
+
+- **The Account tab loads faster after you log in.** Your save codes, passkeys and games now come back in one trip instead of four, and your device count no longer waits for them. Nothing on the page changed and nothing was removed.
+
 ## v0.21 — "Quick Dawn"
 **Tue Oct 20, 2026 · 12:51 AM HST**
 

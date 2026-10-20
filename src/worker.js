@@ -401,9 +401,10 @@ async function account(ctx, known = null) {
   const names = B.NAME_LISTS;
   if (!me) return { player: false, admin: false, codes: [], passkeys: [], devices: 0, name: null, names };
   const { db } = ctx;
-  const id = await accountFor(ctx, me);
-  const { codes, passkeys } = id ? ok(await ACC(ctx.env).info(id)) : { codes: [], passkeys: [] };
-  const devices = 1 + (await db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()).n;
+  const ways = async () => { const id = await accountFor(ctx, me); return id ? ok(await ACC(ctx.env).info(id)) : { codes: [], passkeys: [] }; };
+  const [{ codes, passkeys }, others] = await Promise.all([ways(),      // the device count doesn't wait on the account
+    db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE player_id = ?").bind(me.id).first()]);
+  const devices = 1 + others.n;
   return { player: true, admin: !!me.admin, codes, passkeys, devices, names, signs: !!me.signs,
     name: me.name_a ? { a: me.name_a, b: me.name_b, text: B.nameText(me.name_a, me.name_b) } : null,
     band: me.band == null ? null : { offset: B.offsetOf(me.band), canChangeAt: bandChangeAt(me, ctx.t) } };

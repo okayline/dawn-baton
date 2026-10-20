@@ -5,9 +5,9 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 ---
 
 ## v0.24 — "One Record"
-**Tue Oct 20, 2026 · 2:31 AM HST**
+**Tue Oct 20, 2026 · 2:55 AM HST**
 
-- **Each finished lap is now written into the shared item registry** used by all the 88x31.app games: the ledger's length and newest fingerprint. The registry is timestamped on Bitcoin every hour, so this game's ledger is covered by that one stamp instead of its own. You can see these lines on the registry's ledger page. Removed: the separate timestamp for this ledger from v0.23.
+- **Each finished lap is now written into the shared item registry** used by all the 88x31.app games: the ledger's length and newest fingerprint. The registry is timestamped on Bitcoin every hour, so this game's ledger is covered by that one stamp instead of its own. You can see these lines on the registry's ledger page, in this game's own colours: one sentence for each lap ("Lap 12 came home, and 3 people passed the baton along. 2 bands went unheld."), the lap's 24 colours and its tune. No names, and no bot count. Removed: the separate timestamp for this ledger from v0.23.
 
 ## v0.23 — "Proof of Dawn"
 **Tue Oct 20, 2026 · 2:22 AM HST**

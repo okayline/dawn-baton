@@ -5,7 +5,7 @@
 //   POST /api/band {offset}  set your band from your solar UTC offset (-11..+12); the browser sends its own
 //   POST /api/stamp {color, note}   pass the baton: seal your stamp (blank slots are fine)
 //   GET  /api/planet         the current lap: every band waiting / open / stamped / unheld (no contents)
-//   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked
+//   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked, and the lap's baton if it went to you
 //   GET  /api/ledger?before=&limit=   newest first; contents of unfinished laps are hidden
 //   GET  /api/account        your save codes and passkeys (never the codes themselves)
 //   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
@@ -52,6 +52,7 @@ export default {
       const ctx = { env, req, url, db: env.DB, t: clock(env), launch: Date.parse(env.LAUNCH_START), setCookie: null };
       if (!Number.isFinite(ctx.launch)) return json({ error: "The server has no LAUNCH_START set." }, 500);
       await settle(ctx);
+      try { await batonCopy(ctx); } catch (e) { console.error(e); }   // the registry being away never stops the game
       const res = await route(ctx);
       return ctx.setCookie ? json(res.data ?? res, 200, { "set-cookie": ctx.setCookie }) : json(res.data ?? res);
     } catch (e) {
@@ -113,6 +114,31 @@ async function settle(ctx) {
       }
     }
   }
+}
+
+// ---------- the baton in the shared registry ----------
+
+// Each closed lap that a person held makes one numbered copy of "The Dawn Baton" (a relic in dungeon-items, key "baton")
+// for one of that lap's human stampers, picked from the hash of the lap's last band entry so anyone can check the pick.
+// One lap per request, oldest first. The registry key lap:<n> means a retry never makes a second copy. A registry that's
+// down, or doesn't have the baton yet, never stops the game: the next request tries again.
+let batonItem = null;
+async function batonCopy(ctx) {
+  const { db, env, launch, t } = ctx;
+  const row = await db.prepare(
+    `SELECT MIN(lap) AS lap FROM ledger WHERE kind = 'stamp' AND player_id IS NOT NULL AND lap <= ?
+       AND lap IN (SELECT lap FROM ledger WHERE band = ? AND kind IN ('stamp','gap')) AND lap NOT IN (SELECT lap FROM lap_copies)`)
+    .bind(B.lastClosedLap(launch, t), B.BANDS - 1).first();
+  if (!row || row.lap == null) return;
+  const lap = row.lap;
+  const people = (await db.prepare("SELECT player_id FROM ledger WHERE lap = ? AND kind = 'stamp' AND player_id IS NOT NULL ORDER BY band").bind(lap).all()).results;
+  const end = await db.prepare("SELECT hash FROM ledger WHERE lap = ? AND band = ? AND kind IN ('stamp','gap')").bind(lap, B.BANDS - 1).first();
+  const holder = people[parseInt(end.hash.slice(0, 8), 16) % people.length].player_id;
+  if (!batonItem) batonItem = (await env.REGISTRY.itemIds(GAME, ["baton"])).baton ?? null;
+  if (!batonItem) return console.error("The shared registry has no Dawn Baton item yet.");
+  const r = await env.REGISTRY.birth({ itemId: batonItem, game: GAME, playerId: holder, key: "lap:" + lap });
+  if (r.error) return console.error("The registry refused lap " + lap + "'s baton: " + r.error);
+  await db.prepare("INSERT OR IGNORE INTO lap_copies (lap, item_id, copy, player_id, made_at) VALUES (?,?,?,?,?)").bind(lap, batonItem, r.copy, holder, sec(t)).run();
 }
 
 // A bot's choices come from a hash of the lap and band: always the same, never random at read time.
@@ -292,6 +318,8 @@ async function lapView(ctx) {
     sky: stamps.reduce((a, r) => (a[r.sky] = (a[r.sky] || 0) + 1, a), {}),
     stamps: items,
     yours: items.find((r) => r.mine) || null,
+    // the lap's baton in the shared registry, told only to the one who got it
+    baton: me ? (await ctx.db.prepare("SELECT item_id AS item, copy FROM lap_copies WHERE lap = ? AND player_id = ?").bind(n, me.id).first()) : null,
   };
 }
 

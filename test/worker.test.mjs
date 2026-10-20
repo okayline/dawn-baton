@@ -63,12 +63,25 @@ export function fakeAccounts() {
     async passkeyRemove(id, kid) { const e = [...keys].find(([, v]) => v.acct === id && v.id === kid); if (!e) return err("No such passkey.", 404); keys.delete(e[0]); return { ok: true }; },
   };
 }
+// A stand-in for the copy registry (the Registry entrypoint of dungeon-items, tested there): the baton is item 7, and a
+// key always gives back the copy it made.
+function fakeRegistry() {
+  const births = [], byKey = new Map();
+  return {
+    births,
+    async itemIds(game, keys) { return game === "dawn-baton" && keys.includes("baton") ? { baton: 7 } : {}; },
+    async birth(a) {
+      if (byKey.has(a.key)) return { itemId: a.itemId, copy: byKey.get(a.key), created: false };
+      births.push(a); byKey.set(a.key, births.length); return { itemId: a.itemId, copy: births.length, created: true };
+    },
+  };
+}
 const LAUNCH = "2026-01-01T18:00:00Z";
 const L = Date.parse(LAUNCH);
 let t = L;
 function makeEnv(extra = {}) {
   t = L;
-  return { DB: fakeD1(), ACCOUNTS: fakeAccounts(), LAUNCH_START: LAUNCH, BOTS: "0", clock: () => t, WEATHER: async () => "rain", ...extra };
+  return { DB: fakeD1(), ACCOUNTS: fakeAccounts(), REGISTRY: fakeRegistry(), LAUNCH_START: LAUNCH, BOTS: "0", clock: () => t, WEATHER: async () => "rain", ...extra };
 }
 const at = (hours) => { t = L + hours * B.HOUR; };
 
@@ -516,4 +529,27 @@ test("logging in reuses the account's player here, and a passkey adds to the acc
   assert.equal((await fresh("/api/passkey", { action: "login", credential: { id: "key1" } })).status, 200);
   assert.equal((await fresh("/api/account")).data.passkeys.length, 1);
   assert.equal((await browser({ ...env, ACCOUNTS: undefined })("/api/codes", { action: "new" })).status, 503);
+});
+
+test("a held lap makes one baton copy in the registry, for one of its stampers picked from the last band's hash", async () => {
+  const env = makeEnv(); const a = browser(env), b = browser(env);
+  await a("/api/band", { offset: 3 }); await b("/api/band", { offset: 0 });    // index 9, index 12
+  at(9.5); await a("/api/stamp", { color: 1 });
+  at(12.5); await b("/api/stamp", { color: 2 });
+  at(24.5);                                                                   // lap 1 still open: no copy yet
+  await a("/api/today");
+  assert.equal(env.REGISTRY.births.length, 0);
+  at(26);
+  const la = (await a("/api/lap?n=1")).data, lb = (await b("/api/lap?n=1")).data;
+  await a("/api/today");                                                      // asking again makes no second copy
+  const raw = env.DB.raw;
+  const people = raw.prepare("SELECT player_id FROM ledger WHERE lap = 1 AND kind = 'stamp' AND player_id IS NOT NULL ORDER BY band").all().map((r) => r.player_id);
+  const end = raw.prepare("SELECT hash FROM ledger WHERE lap = 1 AND band = 23").get().hash;
+  const holder = people[parseInt(end.slice(0, 8), 16) % people.length];
+  assert.deepEqual(env.REGISTRY.births, [{ itemId: 7, game: "dawn-baton", playerId: holder, key: "lap:1" }]);
+  const aId = raw.prepare("SELECT player_id FROM ledger WHERE lap = 1 AND band = 9").get().player_id;
+  assert.deepEqual([la.baton, lb.baton], aId === holder ? [{ item: 7, copy: 1 }, null] : [null, { item: 7, copy: 1 }]);
+  at(50);                                                                     // lap 2 had nobody: no copy
+  await a("/api/today");
+  assert.equal(env.REGISTRY.births.length, 1);
 });

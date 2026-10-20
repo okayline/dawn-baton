@@ -24,6 +24,8 @@ Then pass it on. You can pass the baton once per lap.
 
 **Yesterday.** Once the baton has gone all the way around, the whole lap opens up: a gradient of everyone's colors, the tune, and the strand of words, with your own stamp marked. Tap a band or a stamp and the globe turns to it.
 
+**The baton you keep.** When a lap closes, one of the people who passed the baton that lap gets it: a numbered copy of The Dawn Baton in the item registry shared by the 88x31.app games. Yesterday tells you if it was you.
+
 **Empty bands.** If nobody is in a band, it stays dark. The gap is part of the record.
 
 **Privacy.** Stamps are only picked from lists, so there's no free text. What you sent stays hidden until the lap is over. Your name, if you set one, is two friendly words, and you can hide it from your stamps.
@@ -66,6 +68,7 @@ Set `LAUNCH_START` in `wrangler.jsonc` to when lap 1 begins (18:00 UTC, the date
 - `src/ledger.js`: the hash chain (kinds `lap`, `stamp`, `gap`), with the same chaining as the other games.
 - `src/worker.js`: the API. Lazily seals laps and unheld bands on each request.
 - `src/weather.js`: automatic sky via Open-Meteo, falls back to "unknown". Check its terms before earning money.
+- The registry (`REGISTRY`, dungeon-items' `Registry` entrypoint): each closed lap that a person held makes one copy of The Dawn Baton (`batonCopy` in `src/worker.js`, `lap_copies` in `schema.sql`).
 - `src/saves.js`: cookie tokens, extra-device sessions and rate limits. Save codes and passkeys come from the shared Accounts service (dungeon-items, bound as `ACCOUNTS`); old save codes move to the account the first time their player is seen.
 - `public/index.html`: the screens (catch, yesterday, planet, account, how to play) and the globe.
 

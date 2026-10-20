@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.20 — "Keepsake"
+**Tue Oct 20, 2026 · 12:26 AM HST**
+
+- **Each lap's baton is now a real item.** When a lap closes, one of the people who passed the baton that lap gets it to keep: a numbered copy of The Dawn Baton in the shared item registry used by all the 88x31.app games. If it's yours, Yesterday tells you and links to its page. Nobody else is told who got it. A lap with no players makes no baton.
+
 ## v0.19 — "Twenty-Four"
 **Mon Oct 19, 2026 · 8:15 PM HST**
 

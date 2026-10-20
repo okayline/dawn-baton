@@ -95,3 +95,13 @@ CREATE TABLE IF NOT EXISTS band_sky (
   sky   TEXT NOT NULL,
   PRIMARY KEY (lap, band)
 );
+
+-- the baton in the shared registry (migration 007): one numbered copy per closed lap that a person held, and who got it.
+-- Never published; only the holder is told.
+CREATE TABLE IF NOT EXISTS lap_copies (
+  lap        INTEGER PRIMARY KEY,
+  item_id    INTEGER NOT NULL,       -- the baton's id in items-db
+  copy       INTEGER NOT NULL,       -- its copy number in the shared registry
+  player_id  INTEGER NOT NULL,       -- who it went to
+  made_at    INTEGER NOT NULL
+);

@@ -12,7 +12,12 @@
   ],
   // save codes and passkeys: the shared Accounts service (the dungeon-items Worker, `Accounts` entrypoint; see its ACCOUNTS.md).
   // dungeon-items must be deployed first.
-  "services": [{ "binding": "ACCOUNTS", "service": "dungeon-items", "entrypoint": "Accounts" }],
+  // the copy registry (the same Worker's `Registry` entrypoint): each held lap makes one numbered copy of The Dawn Baton.
+  // Seed dungeon-items' seed/dawn-baton.json on items-db and run migrations/007_lap_copies.sql here first.
+  "services": [
+    { "binding": "ACCOUNTS", "service": "dungeon-items", "entrypoint": "Accounts" },
+    { "binding": "REGISTRY", "service": "dungeon-items", "entrypoint": "Registry" }
+  ],
   "vars": {
     // When lap 1 starts: the date-line band's 06:00 solar sunrise, i.e. 18:00 UTC the day before.
     "LAUNCH_START": "2026-10-15T18:00:00Z",

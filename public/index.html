@@ -31,8 +31,8 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
 <div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
-<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section>
-<footer class="m" style="text-align:center;padding:8px 0 56px"><span id="ver">Dawn Baton</span> &middot; <a href="#" id="howto" style="color:inherit">How to Play</a></footer>
+<section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section><section id="ledger" hidden></section>
+<footer class="m" style="text-align:center;padding:8px 0 56px"><span id="ver">Dawn Baton</span> &middot; <a href="#" id="howto" style="color:inherit">How to Play</a> &middot; <a href="#" id="seeledger" style="color:inherit">Ledger</a></footer>
 </main>
 <div id="adm" hidden></div>
 <script>
@@ -55,11 +55,12 @@ const api = async (p, body) => {
 
 document.querySelectorAll(".tab").forEach((b) => b.onclick = () => show(b.dataset.t));
 $("#howto").onclick = (e) => { e.preventDefault(); show("help"); window.scrollTo(0, 0); };
+$("#seeledger").onclick = (e) => { e.preventDefault(); show("ledger"); window.scrollTo(0, 0); };
 function show(t) {
   if (t === "payoff" && curTab !== "payoff") lapN = null;      // coming back to Yesterday starts at the latest lap again
   curTab = t;
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
-  for (const id of ["catch", "payoff", "planet", "account", "help"]) $("#" + id).hidden = id !== t;
+  for (const id of ["catch", "payoff", "planet", "account", "help", "ledger"]) $("#" + id).hidden = id !== t;
   load(t); refreshGlobe();
 }
 async function load(which) {
@@ -69,6 +70,7 @@ async function load(which) {
   if (which === "planet") return planetScreen(fx || await api("planet"));
   if (which === "account") return accountScreen(fx || await api("account"));
   if (which === "help") return helpScreen();
+  if (which === "ledger") return ledgerScreen();
 }
 
 // ---------- how to play ----------
@@ -81,6 +83,26 @@ function helpScreen() {
     ["The globe", "Gold is the baton. White is you. \u2600\uFE0F is where the sun is right now. Tap a dot under the globe to jump to that band."],
   ];
   $("#help").innerHTML = `<div style="display:grid;gap:10px;margin-top:10px">` + cards.map(([h, t]) => `<div class="p" style="margin:0"><b>${h}</b><div style="margin-top:6px">${t}</div></div>`).join("") + `</div>`;
+}
+
+// ---------- ledger ----------
+// Every lap, stamp and unheld band, newest first, straight from /api/ledger. A stamp's contents stay hidden until its lap
+// is over, so an open lap's stamps show only their band. Hashes are the first 12 characters of each entry's fingerprint.
+const bandName = (i) => { const o = 12 - i; return "solar UTC" + (o >= 0 ? "+" : "-") + Math.abs(o); };
+function ledgerLine(e) {
+  if (e.kind === "lap") return `Lap ${e.lap} opened.`;
+  if (e.kind === "gap") return `Lap ${e.lap}: ${bandName(e.band)} was unheld.`;
+  return `Lap ${e.lap}: ${bandName(e.band)} stamped` + (e.record ? "." : " (hidden until the lap is over).");
+}
+async function ledgerScreen(before) {
+  const d = PV ? { entries: [] } : await api("ledger?limit=40" + (before ? "&before=" + before : ""));
+  const rows = (d.entries || []).map((e) => `<div class="strand" style="cursor:default"><div>#${e.id} ${esc(ledgerLine(e))}</div><div class="m">${new Date(e.created_at * 1000).toLocaleDateString()} &middot; prev ${esc(e.prev_hash.slice(0, 12))} &middot; hash ${esc(e.hash.slice(0, 12))}</div></div>`).join("");
+  const last = d.entries && d.entries.length === 40 ? d.entries[39].id : null;
+  const box = $("#ledger");
+  if (!before) box.innerHTML = `<div class="p"><div class="h">Ledger</div><div id="lrows">${rows || '<div class="m">Nothing yet.</div>'}</div><div id="lmore"></div></div>`;
+  else $("#lrows").insertAdjacentHTML("beforeend", rows);
+  $("#lmore").innerHTML = last ? `<button id="lolder">Older</button>` : "";
+  if (last) $("#lolder").onclick = () => ledgerScreen(last);
 }
 
 // ---------- catch ----------

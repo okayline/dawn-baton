@@ -237,7 +237,6 @@ test("up to five codes, removing one, and logging out needs a way back in", asyn
   assert.equal((await b("/api/codes", { action: "remove", id: list[0].id })).status, 404);
   assert.equal((await b("/api/logout", {})).status, 200);
   assert.equal((await b("/api/today")).data.band, null);                  // this browser forgot its player
-  assert.equal((await b("/api/band", { offset: 3 })).status, 401);        // and can't make a new one until it logs in
 });
 
 test("a stranger can't remove someone else's code or passkey", async () => {

@@ -73,10 +73,7 @@ const sec = (ms) => Math.floor(ms / 1000);
 
 const readCookie = (req) => { const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)bb=([A-Za-z0-9_-]{20,})/); return m ? m[1] : null; };
 const cookieFor = (token) => `${COOKIE}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
-// After a log out the cookie says "out" (too short to be a token), so this browser can't make a new player until it
-// logs in again. A browser that never had a cookie still gets one made when it first plays.
-const LOGGED_OUT = cookieFor("out");
-const loggedOut = (req) => /(?:^|;\s*)bb=out(?:;|$)/.test(req.headers.get("cookie") || "");
+const CLEAR_COOKIE = `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 
 // The player behind this request's cookie, or null. Never creates one (so crawlers don't make players).
 async function player(ctx, create = false) {
@@ -91,7 +88,6 @@ async function player(ctx, create = false) {
     if (p) { await db.prepare("UPDATE players SET seen_at = ? WHERE id = ?").bind(now, p.id).run(); return p; }
   }
   if (!create) return null;
-  if (loggedOut(ctx.req)) throw new Oops("You logged out of this browser. Log in with your save code or passkey first.", 401);
   const fresh = newToken();
   const row = await db.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?,?,?) RETURNING *").bind(await sha256(fresh), now, now).first();
   ctx.setCookie = cookieFor(fresh);
@@ -532,18 +528,17 @@ async function passkey(ctx) {
   throw new Oops("Unknown action.");
 }
 
-// Log out: this browser forgets its player, and won't make a new one until it logs in again. Only once there's a save
-// code or passkey to get back in.
+// Log out: this browser forgets its player, but only once there's a save code or passkey to get back in.
 async function logout(ctx) {
   const me = await player(ctx), { db } = ctx;
-  if (!me) { ctx.setCookie = LOGGED_OUT; return { ok: true }; }
+  if (!me) { ctx.setCookie = CLEAR_COOKIE; return { ok: true }; }
   const id = await accountFor(ctx, me);
   const ways = id ? await ACC(ctx.env).waysIn(id) : 0;
   if (!ways) throw new Oops("Make a save code or passkey first, or you'd have no way back in.");
   const h = await sha256(readCookie(ctx.req));
   const s = await db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(h).run();
   if (!s.meta.changes) await db.prepare("UPDATE players SET token_hash = ? WHERE id = ? AND token_hash = ?").bind(await sha256(newToken()), me.id, h).run();
-  ctx.setCookie = LOGGED_OUT;
+  ctx.setCookie = CLEAR_COOKIE;
   return { ok: true };
 }
 

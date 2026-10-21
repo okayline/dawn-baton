@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.25 — "Lap Results"
+**Wed Oct 21, 2026 · 3:10 AM HST**
+
+- **A finished lap's page now has a Results panel at the bottom** of the Yesterday tab: the lap number, when it opened and closed, how many people passed the baton, how many bands went unheld, the settle / lean / silent count, and the lap's place in the ledger (first and closing entry, with the closing entry's record, previous fingerprint and fingerprint). Nothing about a player is shown. Removed: nothing.
+- **A lap now has its own link:** `dawn.88x31.app/?lap=12` opens Yesterday on lap 12 (a lap that hasn't finished says so). Removed: nothing; the page still opens on Catch without it.
+
+---
+
 ## v0.24 — "One Record"
 **Tue Oct 20, 2026 · 2:55 AM HST**
 

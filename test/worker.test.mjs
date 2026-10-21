@@ -161,6 +161,19 @@ test("unheld bands seal as gaps, and the closed lap reads back with your stamp m
   assert.ok(led.filter((e) => e.lap <= 1).every((e) => "record" in e));
 });
 
+test("a closed lap says where it sits in the ledger: its first entry and its closing entry, the one the registry checkpoints", async () => {
+  const env = makeEnv(); const me = browser(env);
+  await me("/api/band", { offset: 0 }); at(12.5);
+  await me("/api/stamp", { color: 9 });
+  at(26);
+  const lap = (await me("/api/lap?n=1")).data;
+  const raw = env.DB.raw;
+  const first = raw.prepare("SELECT MIN(id) AS id FROM ledger WHERE lap = 1").get().id;
+  const end = raw.prepare("SELECT id, record, prev_hash, hash FROM ledger WHERE lap = 1 AND band = 23").get();
+  assert.deepEqual(lap.ledger, { from: first, end: { ...end } });
+  assert.equal(lap.ledger.end.hash, env.REGISTRY.checkpoints[0].head);
+});
+
 test("with bots on, empty bands get a bot's stamp, the same one every time", async () => {
   const env = makeEnv({ BOTS: "1", BOT_SECRET: "x" }); const me = browser(env);
   at(26);

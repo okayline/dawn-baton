@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.25 — "Log In First"
+**Wed Oct 21, 2026 · 12:50 AM HST**
+
+- After you log out of this browser, playing asks you to log in with your save code or passkey first, instead of making a new empty player. A browser that has never played still gets a player the first time.
+- Removed: a new empty player every time you played after logging out.
+
 ## v0.24 — "One Record"
 **Tue Oct 20, 2026 · 2:55 AM HST**
 

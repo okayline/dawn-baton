@@ -23,6 +23,8 @@ nav{display:flex;gap:6px}nav .tab{flex:1;padding:8px}
 .grad{height:34px;border:2px solid #fff;margin:8px 0;display:flex}.grad i{flex:1}
 #pv{position:sticky;top:0;z-index:5;background:#ffe066;color:#12124a;font-weight:700;text-align:center;padding:6px;font-size:12px}
 #adm{position:fixed;left:0;right:0;bottom:0;background:#0b0b2b;border-top:2px solid var(--gold);padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:9}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #3a3a9a}.kv span:last-child{text-align:right}
+.seal{margin-top:8px;color:var(--mute);font:11px/1.45 "Courier New",Courier,monospace;word-break:break-all}.seal .k{margin-right:.7em;text-transform:uppercase}
 .slot{margin:4px 0 10px}.strand{cursor:pointer;padding:6px 0;border-bottom:1px solid #3a3a9a}.strand.me{background:#2b2b8a;border:2px solid var(--gold);padding:6px 8px;border-radius:4px}
 select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:3px}
 </style></head><body><main>
@@ -265,9 +267,22 @@ function strand(st, me) {
     ${when ? `<div class="m">${when}</div>` : ""}
     <div class="r" style="margin-top:4px"><span class="sw" style="cursor:default;width:60px;height:24px;${st.color != null ? `background:${hsl(palette[st.color])}` : "background:transparent;border:1px dashed #6c6cff"}"></span>${[st.note ? (NOTE_WORD[st.note] || cap(st.note)) : null, ...t.extra].filter(Boolean).map((w) => `<span class="chip" style="cursor:default">${esc(w)}</span>`).join("")}</div></div>`;
 }
+const whenAt = (ms) => new Date(ms).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+// the lap's results and its place in the ledger: everything here is public once the lap is over
+function resultsPanel(l) {
+  const e = l.ledger && l.ledger.end, t = l.tally;
+  const seal = e ? `<div class="seal">${[["record", e.record], ["prev", e.prev_hash], ["hash", e.hash]].map(([k, v]) => `<div><span class="k">${k}:</span>${esc(v)}</div>`).join("")}</div>` : "";
+  return `<div class="p"><p class="h">Results</p>${[
+    kv("Lap", l.lap), kv("Opened", whenAt(l.startsAt)), kv("Closed", whenAt(l.closedAt)),
+    kv("People who passed the baton", l.held), kv("Bands unheld", l.unheld),
+    kv("Settle &middot; lean &middot; silent", `${t.resolve} &middot; ${t.tension} &middot; ${t.silent}`),
+    e ? kv("Ledger entries", `#${l.ledger.from} to #${e.id}`) : "",
+  ].join("")}${seal}</div>`;
+}
 function payoffScreen(l) {
   const el = $("#payoff");
-  if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">No finished lap yet. The first one closes about 25 hours after launch.</div></div>`; lapForGlobe = null; G = null; refreshGlobe(); return; }
+  if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">${lapN ? esc(l.error) : "No finished lap yet. The first one closes about 25 hours after launch."}</div></div>`; lapForGlobe = null; G = null; refreshGlobe(); return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
   const myBox = me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : "";
@@ -283,7 +298,8 @@ function payoffScreen(l) {
     ${l.baton ? `<div class="p" style="border-color:var(--gold)"><div>You carried this lap's baton home.</div><div class="m" style="margin-top:2px"><a href="https://88x31.app/registry?item=${l.baton.item}&copy=${l.baton.copy}" target="_blank" rel="noopener" style="color:inherit">The Dawn Baton #${l.baton.copy}</a> is yours, in the shared registry.</div></div>` : ""}
     <div id="top">${myBox}</div>
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
-      ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>`;
+      ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>
+    ${resultsPanel(l)}`;
   lapForGlobe = l; G = null; refreshGlobe();                          // the globe shows this lap, in its players' colours
   el.onclick = (e) => { const t = e.target.closest("[data-b]"); if (t) pickBand(+t.dataset.b); };
   $("#lprev").onclick = () => { stopSound(); lapN = l.lap - 1; load("payoff"); };
@@ -575,7 +591,7 @@ function fixture(which, scn) {
         signoff: rnd(3) ? rnd(lists.signoff.length || 1) : null, name: !bot && rnd(2) ? `${NAMES.adj[rnd(NAMES.adj.length || 1)] || "Quiet"} ${NAMES.noun[rnd(NAMES.noun.length || 1)] || "Heron"}` : null, sky: bot ? "unknown" : ["clear", "cloud", "rain", "fog", "snow", "drizzle", "storm"][rnd(7)], t: Math.floor(Date.now() / 1000) - 86400 + i * 3600 + rnd(7200), opensAt: Date.now() - 86400000 + i * 3600000, mine: scn !== "missed" && i === 18, hash: "9f2c" + "a".repeat(56) + "a71e" });
     }
     const items = stamps, st = items.filter((x) => x.kind === "stamp");
-    return { next: { open: false, opensAt: at(6, 12) + 86400000, closesAt: at(8, 12) + 86400000 }, lap: lapNo, first: 1, last: 117, startsAt: Date.now() - 86400000 * (118 - lapNo), held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
+    return { next: { open: false, opensAt: at(6, 12) + 86400000, closesAt: at(8, 12) + 86400000 }, lap: lapNo, first: 1, last: 117, startsAt: Date.now() - 86400000 * (118 - lapNo), closedAt: Date.now() - 86400000 * (118 - lapNo) + 26 * 3600000, ledger: { from: lapNo * 25 - 24, end: { id: lapNo * 25, record: '{"kind":"stamp","lap":' + lapNo + ',"band":23}', prev_hash: "a1".repeat(32), hash: "b2".repeat(32) } }, held: st.filter((x) => !x.bot).length, bots: st.filter((x) => x.bot).length, unheld: items.length - st.length, gradient: items.map((x) => x.color), tune: items.map((x) => x.note),
       tally: { resolve: st.filter((x) => x.note === "resolve").length, tension: st.filter((x) => x.note === "tension").length, silent: items.filter((x) => x.note == null).length },
       sky: st.reduce((a, x) => (a[x.sky] = (a[x.sky] || 0) + 1, a), {}), stamps: items, yours: items.find((x) => x.mine) || null };
   }
@@ -610,6 +626,8 @@ document.addEventListener("keydown", (e) => {
   adminPanel();
 });
 
-load("catch"); refreshGlobe();
+const linked = /^\d+$/.test(new URLSearchParams(location.search).get("lap") || "") ? Number(new URLSearchParams(location.search).get("lap")) : null;
+if (linked) { lapN = linked; curTab = "payoff"; show("payoff"); load("catch").then(() => load("payoff")); }   // ?lap=N (the registry's link) opens that lap's page; Catch loads behind it first because it brings the colours, the words and the version
+else { load("catch"); refreshGlobe(); }
 fetch("/api/account").then((r) => r.json()).then((a) => { isAdmin = !!a.admin; if (a.names) NAMES = a.names; }).catch(() => {});
 </script></body></html>

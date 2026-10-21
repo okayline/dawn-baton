@@ -5,7 +5,7 @@
 //   POST /api/band {offset}  set your band from your solar UTC offset (-11..+12); the browser sends its own
 //   POST /api/stamp {color, note}   pass the baton: seal your stamp (blank slots are fine)
 //   GET  /api/planet         the current lap: every band waiting / open / stamped / unheld (no contents)
-//   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked, and the lap's baton if it went to you
+//   GET  /api/lap?n=         a closed lap in full (default: the latest closed one), with your stamp marked, the lap's place in the ledger, and the lap's baton if it went to you
 //   GET  /api/ledger?before=&limit=   newest first; contents of unfinished laps are hidden
 //   GET  /api/account        your save codes and passkeys (never the codes themselves)
 //   POST /api/codes {action: "new" | "remove", id}   make a save code (shown once) or forget one
@@ -351,6 +351,9 @@ async function lapView(ctx) {
     rows.forEach((r, i) => { const p = byId.get(r.player); items[i].name = p && p.signs && p.name_a ? B.nameText(p.name_a, p.name_b) : null; });
   }
   const stamps = items.filter((r) => r.kind === "stamp");
+  // the lap's place in the ledger: its first entry, and its closing entry (the one the registry's checkpoint is made from). All public once the lap is over.
+  const from = (await ctx.db.prepare("SELECT MIN(id) AS id FROM ledger WHERE lap = ?").bind(n).first())?.id ?? null;
+  const end = await ctx.db.prepare("SELECT id, record, prev_hash, hash FROM ledger WHERE lap = ? AND band = ? AND kind IN ('stamp','gap')").bind(n, B.BANDS - 1).first();
   return {
     next, lap: n, first: 1, last, startsAt: B.lapStart(launch, n), closedAt: B.lapClosesAt(launch, n),
     held: stamps.filter((r) => !r.bot).length, bots: stamps.filter((r) => r.bot).length, unheld: items.length - stamps.length,
@@ -359,6 +362,7 @@ async function lapView(ctx) {
     tally: { resolve: stamps.filter((r) => r.note === "resolve").length, tension: stamps.filter((r) => r.note === "tension").length, silent: items.filter((r) => r.note == null).length },
     sky: stamps.reduce((a, r) => (a[r.sky] = (a[r.sky] || 0) + 1, a), {}),
     stamps: items,
+    ledger: { from, end: end || null },
     yours: items.find((r) => r.mine) || null,
     // the lap's baton in the shared registry, told only to the one who got it
     baton: me ? (await ctx.db.prepare("SELECT item_id AS item, copy FROM lap_copies WHERE lap = ? AND player_id = ?").bind(n, me.id).first()) : null,

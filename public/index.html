@@ -61,6 +61,7 @@ $("#seeledger").onclick = (e) => { e.preventDefault(); show("ledger"); window.sc
 function show(t) {
   if (t === "payoff" && curTab !== "payoff") lapN = null;      // coming back to Yesterday starts at the latest lap again
   curTab = t;
+  if (t !== "payoff" && !PV && location.search) history.replaceState(null, "", location.pathname);   // the address follows the tab: only Yesterday has one (?lap=N)
   document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.t === t));
   for (const id of ["catch", "payoff", "planet", "account", "help", "ledger"]) $("#" + id).hidden = id !== t;
   load(t); refreshGlobe();
@@ -284,6 +285,7 @@ function payoffScreen(l) {
   const el = $("#payoff");
   if (l.error) { el.innerHTML = `<div class="p"><p class="h">Yesterday's lap</p><div class="m">${lapN ? esc(l.error) : "No finished lap yet. The first one closes about 25 hours after launch."}</div></div>`; lapForGlobe = null; G = null; refreshGlobe(); return; }
   $("#lapno").textContent = `Lap ${l.lap}`;
+  if (!PV && curTab === "payoff") history.replaceState(null, "", location.pathname + "?lap=" + l.lap);   // the lap on screen is the one in the address, so it can be copied
   const me = l.yours, held = l.stamps.filter((x) => x.kind === "stamp"), shown = held.filter((x) => x.phrase != null || x.mine);
   const myBox = me ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your stamp, ${esc(me.label)}</p>${strand(me, false).replace('class="strand"', 'class="strand" style="border:0;padding:0"')}<div class="m" style="margin-top:4px">Proof: fingerprint ${me.hash.slice(0, 4)}&hellip;${me.hash.slice(-4)}</div></div>` : "";
   const nav = `<div class="r" style="justify-content:space-between;flex-wrap:nowrap"><button id="lprev" ${l.lap <= l.first ? "disabled" : ""} aria-label="Earlier lap">&#9664;</button>

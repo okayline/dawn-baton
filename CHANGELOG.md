@@ -4,6 +4,13 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.26 — "Lap Address"
+**Wed Oct 21, 2026 · 3:05 AM HST**
+
+- **The address now shows the lap you're looking at:** open Yesterday (or tap ◀ ▶) and the address becomes `dawn.88x31.app/?lap=5`, so you can copy it. The other tabs go back to the plain address. Removed: nothing.
+
+---
+
 ## v0.25 — "Lap Results"
 **Wed Oct 21, 2026 · 3:10 AM HST**
 

@@ -4,12 +4,6 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
-## v0.26 — "Home Browser"
-**Wed Oct 21, 2026 · 1:05 AM HST**
-
-- Each browser keeps its own player. Log in as someone else and then log out, and you're back on the player this browser had, instead of a new one.
-- Removed: v0.25's "log in first" after a log out.
-
 ## v0.25 — "Log In First"
 **Wed Oct 21, 2026 · 12:50 AM HST**
 

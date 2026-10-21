@@ -87,18 +87,15 @@ function makeEnv(extra = {}) {
 const at = (hours) => { t = L + hours * B.HOUR; };
 
 function browser(env) {
-  const jar = {};
+  let cookie = "";
   return async (path, body) => {
-    const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join("; ");
     const res = await worker.fetch(new Request("https://baton.example" + path, {
       method: body ? "POST" : "GET",
       headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     }), env);
-    for (const c of res.headers.getSetCookie()) {
-      const [k, v] = c.split(";")[0].split("=");
-      if (/Max-Age=0/.test(c)) delete jar[k]; else jar[k] = v;
-    }
+    const set = res.headers.get("set-cookie");
+    if (set) cookie = set.split(";")[0];
     return { status: res.status, data: await res.json() };
   };
 }
@@ -240,20 +237,7 @@ test("up to five codes, removing one, and logging out needs a way back in", asyn
   assert.equal((await b("/api/codes", { action: "remove", id: list[0].id })).status, 404);
   assert.equal((await b("/api/logout", {})).status, 200);
   assert.equal((await b("/api/today")).data.band, null);                  // this browser forgot its player
-});
-
-test("logging out goes back to this browser's own player, so it never makes a new one", async () => {
-  const env = makeEnv(); const home = browser(env), cafe = browser(env);
-  await home("/api/band", { offset: 3 });
-  const { code } = (await home("/api/codes", { action: "new" })).data;
-  await cafe("/api/band", { offset: 5 });                                  // the cafe browser's own player
-  assert.equal((await cafe("/api/load", { code })).status, 200);
-  assert.equal((await cafe("/api/account")).data.band.offset, 3);
-  assert.equal((await cafe("/api/logout", {})).status, 200);
-  assert.equal((await cafe("/api/account")).data.band.offset, 5);          // back on its own player
-  await cafe("/api/load", { code }); await cafe("/api/logout", {});
-  assert.equal((await cafe("/api/account")).data.band.offset, 5);          // and again
-  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM players").get().n, 2);
+  assert.equal((await b("/api/band", { offset: 3 })).status, 401);        // and can't make a new one until it logs in
 });
 
 test("a stranger can't remove someone else's code or passkey", async () => {

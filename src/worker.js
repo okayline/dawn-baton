@@ -27,14 +27,9 @@ const COOKIE_MAX_AGE = 400 * 86400;
 
 class Oops extends Error { constructor(m, status = 400) { super(m); this.status = status; } }   // .extra: more fields for the reply
 
-// headers["set-cookie"] may be a list (logging in and out set two cookies)
-const json = (data, status = 200, { "set-cookie": cookies, ...headers } = {}) => {
-  const res = new Response(JSON.stringify(data), {
-    status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
-  });
-  for (const c of [cookies].flat()) if (c) res.headers.append("set-cookie", c);
-  return res;
-};
+const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {
+  status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+});
 
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
@@ -76,13 +71,12 @@ const sec = (ms) => Math.floor(ms / 1000);
 // A player's first device uses players.token_hash; devices loaded later (save code or passkey) each get a
 // row in sessions. Only hashes of tokens are stored.
 
-const readCookie = (req, name = COOKIE) => { const m = (req.headers.get("cookie") || "").match(new RegExp(`(?:^|;\\s*)${name}=([A-Za-z0-9_-]{20,})`)); return m ? m[1] : null; };
+const readCookie = (req) => { const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)bb=([A-Za-z0-9_-]{20,})/); return m ? m[1] : null; };
 const cookieFor = (token) => `${COOKIE}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
-const clearCookie = (name) => `${name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
-// This browser's own player (one with no save code or passkey), kept while the browser is logged in as someone else, so
-// logging out goes back to it instead of a new player being made every time.
-const HOME = COOKIE + "h";
-const homeFor = (token) => `${HOME}=${token}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
+// After a log out the cookie says "out" (too short to be a token), so this browser can't make a new player until it
+// logs in again. A browser that never had a cookie still gets one made when it first plays.
+const LOGGED_OUT = cookieFor("out");
+const loggedOut = (req) => /(?:^|;\s*)bb=out(?:;|$)/.test(req.headers.get("cookie") || "");
 
 // The player behind this request's cookie, or null. Never creates one (so crawlers don't make players).
 async function player(ctx, create = false) {
@@ -97,6 +91,7 @@ async function player(ctx, create = false) {
     if (p) { await db.prepare("UPDATE players SET seen_at = ? WHERE id = ?").bind(now, p.id).run(); return p; }
   }
   if (!create) return null;
+  if (loggedOut(ctx.req)) throw new Oops("You logged out of this browser. Log in with your save code or passkey first.", 401);
   const fresh = newToken();
   const row = await db.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?,?,?) RETURNING *").bind(await sha256(fresh), now, now).first();
   ctx.setCookie = cookieFor(fresh);
@@ -416,14 +411,13 @@ async function accountFor(ctx, me, make = false) {
 }
 
 // Log this browser in as the account's player here: the one it already has, else this browser's own player (if it has no
-// account yet), else a new one. If this browser's own player is left behind, it is kept in the HOME cookie for logging out.
+// account yet), else a new one.
 async function enter(ctx, accountId) {
   const { env, db } = ctx, acc = ACC(env), t = sec(ctx.t);
-  const cur = await player(ctx);
-  const curIsGuest = cur && !(await acc.accountOf(GAME, cur.id)).accountId;
   let { playerId } = await acc.playerFor(accountId, GAME);
   if (!playerId) {
-    if (curIsGuest) playerId = cur.id;
+    const cur = await player(ctx);
+    if (cur && !(await acc.accountOf(GAME, cur.id)).accountId) playerId = cur.id;
     else {
       if (!(await rateLimit(env, ctx.req, "new-player", 20, 3600))) throw new Oops("Too many new players from here. Try again later.", 429);
       playerId = (await db.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?,?,?) RETURNING id").bind(await sha256(newToken()), t, t).first()).id;
@@ -431,8 +425,7 @@ async function enter(ctx, accountId) {
     const l = ok(await acc.link(accountId, GAME, playerId));
     playerId = l.playerId;
   }
-  ctx.setCookie = [cookieFor(await newSession(env, playerId))];
-  if (curIsGuest && cur.id !== playerId) ctx.setCookie.push(homeFor(readCookie(ctx.req)));
+  ctx.setCookie = cookieFor(await newSession(env, playerId));
 }
 
 const must = async (ctx, create = false) => { const p = await player(ctx, create); if (!p) throw new Oops("No player here.", 401); return p; };
@@ -539,20 +532,18 @@ async function passkey(ctx) {
   throw new Oops("Unknown action.");
 }
 
-// Log out: this browser forgets its player and goes back to its own (the HOME cookie), if it had one. Only once there's
-// a save code or passkey to get back in.
+// Log out: this browser forgets its player, and won't make a new one until it logs in again. Only once there's a save
+// code or passkey to get back in.
 async function logout(ctx) {
   const me = await player(ctx), { db } = ctx;
-  if (!me) { ctx.setCookie = [clearCookie(COOKIE), clearCookie(HOME)]; return { ok: true }; }
+  if (!me) { ctx.setCookie = LOGGED_OUT; return { ok: true }; }
   const id = await accountFor(ctx, me);
   const ways = id ? await ACC(ctx.env).waysIn(id) : 0;
   if (!ways) throw new Oops("Make a save code or passkey first, or you'd have no way back in.");
   const h = await sha256(readCookie(ctx.req));
   const s = await db.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(h).run();
   if (!s.meta.changes) await db.prepare("UPDATE players SET token_hash = ? WHERE id = ? AND token_hash = ?").bind(await sha256(newToken()), me.id, h).run();
-  const home = readCookie(ctx.req, HOME);
-  const back = home && (await db.prepare("SELECT id FROM players WHERE token_hash = ? AND id != ?").bind(await sha256(home), me.id).first());
-  ctx.setCookie = [back ? cookieFor(home) : clearCookie(COOKIE), clearCookie(HOME)];
+  ctx.setCookie = LOGGED_OUT;
   return { ok: true };
 }
 

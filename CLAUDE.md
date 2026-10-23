@@ -1,5 +1,14 @@
 # Working notes for Dawn Baton
 
+## Rules for every repo
+
+- **Push only when the user says to.** Build and commit locally as asked.
+- **Ask before adding anything that wasn't asked for** (a button, a screen, a message, a page, a feature), even a small one. The owner would rather be asked than remove it later.
+- **Keep testing quick: 2-3 mins at most. Don't test for edge cases.**
+- **No new dependencies** without asking.
+- Times in changelogs are Hawaii time (HST).
+
+
 - **Push only when the user says to.** Build and commit locally as asked; the live site redeploys from `main`, so a push is a release.
 - **When pushing a batch:** bump `VERSION` in `engine/version.js`, put a new entry at the top of `CHANGELOG.md` (plain, public, same style as the older entries; a test checks the newest heading matches `VERSION`), add a detailed entry to the dev changelog `dawn-baton/changelog-v0.1.md` in the private dungeon-notes repo (decisions, then what changed in detail, migrations, test count), and push both repos. Times in both are Hawaii time (HST).
 - A database change needs a migration file in `migrations/`, `schema.sql` updated, and the live `baton-db` migrated *before* the push that needs it.

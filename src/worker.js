@@ -34,6 +34,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
   "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
+  "GET /api/copies": copies, "POST /api/pin": pinCopy,
   "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
   "POST /api/passkey": passkey, "POST /api/name": setName, "POST /api/logout": logout,
 };
@@ -148,8 +149,20 @@ async function batonCopy(ctx) {
   const holder = people[parseInt(end.hash.slice(0, 8), 16) % people.length].player_id;
   if (!batonItem) batonItem = (await env.REGISTRY.itemIds(GAME, ["baton"])).baton ?? null;
   if (!batonItem) return console.error("The shared registry has no Dawn Baton item yet.");
+  // (v0.27) the copy the holder carried rides with the baton: marked before the baton is made, so it isn't the new baton itself
+  await markCarry(env, holder, "rode_with_baton", "lap:" + lap);
   const r = await env.REGISTRY.birth({ itemId: batonItem, game: GAME, playerId: holder, key: "lap:" + lap });
   if (r.error) return console.error("The registry refused lap " + lap + "'s baton: " + r.error);
+  // (v0.27) the relic carries its lap's dawn: the holder's band and their sky, as two deed marks (keys per lap, so a retry
+  // makes no second ones). An unknown sky gets no sky mark.
+  const mine = await db.prepare("SELECT band, record FROM ledger WHERE lap = ? AND kind = 'stamp' AND player_id = ?").bind(lap, holder).first();
+  if (mine) {
+    const sky = JSON.parse(mine.record).sky, copies = (k) => [{ itemId: batonItem, copy: r.copy, key: "lap:" + lap + ":" + k }];
+    const marks = [{ kind: "deed", value: "dawn_band_" + mine.band, copies: copies("band") },
+      ...(sky && sky !== "unknown" ? [{ kind: "deed", value: "dawn_sky_" + sky, copies: copies("sky") }] : [])];
+    const m = await env.REGISTRY.addMarks({ holder: { game: GAME, playerId: holder }, marks });
+    if (m && m.error) console.error("The registry refused lap " + lap + "'s baton marks: " + m.error);
+  }
   await db.prepare("INSERT OR IGNORE INTO lap_copies (lap, item_id, copy, player_id, made_at) VALUES (?,?,?,?,?)").bind(lap, batonItem, r.copy, holder, sec(t)).run();
 }
 
@@ -250,6 +263,7 @@ async function today(ctx) {
     out.heard = before.slice(-3).map((r) => r.note ?? null);       // the last three notes before you, oldest first (null = silence)
     if (!out.stamped) out.sky = await skyFor(ctx.env, ctx.req);
   }
+  out.carry = carryView(await carried(ctx.env, me.id));   // (v0.27) the copy you carry: your account's pinned copy
   return out;
 }
 
@@ -547,3 +561,41 @@ async function logout(ctx) {
 }
 
 export { verifyChain };
+
+// ---------- the carried copy (copied from TILT.EXE v0.19) ----------
+// Your account's pinned copy from any game (dungeon-items registry.js pinned: the pin, else your newest copy), read when
+// a run starts so the page can show it, and read again when a memorable moment marks it (markCarried: a deed mark made
+// in this game, keyed so a retry makes no second mark). A Moon-blessed copy (a 4Dungeon mark) shows in gold. A registry
+// that's away, or no copy, carries nothing and never stops a run.
+async function carried(env, playerId) {
+  try {
+    const c = env.REGISTRY && env.REGISTRY.pinned ? await env.REGISTRY.pinned(GAME, playerId) : null;
+    return c && c.itemId ? { ...c, blessed: c.marks.some((m) => m.kind === "moon" && m.value === "blessed") ? 1 : 0 } : null;
+  } catch (e) { console.error(e); return null; }
+}
+const carryView = (c) => c ? { name: c.item.name, copy: c.copy, blessed: c.blessed } : null;
+async function markCarry(env, playerId, value, key) {
+  const c = await carried(env, playerId);
+  if (!c) return;
+  try {
+    const r = await env.REGISTRY.markCarried({ itemId: c.itemId, copy: c.copy, by: { game: GAME, playerId }, kind: "deed", value, key });
+    if (r && r.error) console.error("The registry refused the mark: " + r.error);
+  } catch (e) { console.error(e); }
+}
+
+// The picker (account panel): every copy your account holds in any game, newest first, and pinning one of them to carry.
+//   GET  /api/copies              { copies: [{ itemId, copy, name, game, pinned }] } (up to 50)
+//   POST /api/pin {itemId, copy}  pin it: every game carries it from your next run
+async function copies(ctx) {
+  const { env } = ctx, me = await player(ctx);
+  if (!me || !env.REGISTRY || !env.REGISTRY.heldAcross) return { copies: [] };
+  const list = await env.REGISTRY.heldAcross(GAME, me.id, 50);
+  return { copies: list.map((c) => ({ itemId: c.itemId, copy: c.copy, name: c.item.name, game: c.game, pinned: c.pinned })) };
+}
+async function pinCopy(ctx) {
+  const { env } = ctx, me = await player(ctx), b = await ctx.req.json().catch(() => ({}));
+  if (!me) throw new Oops("Make a save code or passkey first.", 401);
+  const r = await env.REGISTRY.pin({ game: GAME, playerId: me.id, itemId: Number(b.itemId), copy: Number(b.copy) });
+  if (r && r.error) throw new Oops(r.error);
+  return { ok: true };
+}

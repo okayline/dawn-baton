@@ -66,9 +66,10 @@ export function fakeAccounts() {
 // A stand-in for the copy registry (the Registry entrypoint of dungeon-items, tested there): the baton is item 7, and a
 // key always gives back the copy it made.
 function fakeRegistry() {
-  const births = [], byKey = new Map(), checkpoints = [];
+  const births = [], byKey = new Map(), checkpoints = [], marks = [];
   return {
-    births, checkpoints,
+    births, checkpoints, marks,
+    async addMarks(a) { marks.push(a); return { ok: true, marked: [], already: 0, skipped: [] }; },
     async checkpoint(a) { if (!checkpoints.some((c) => c.head === a.head)) checkpoints.push(a); return { ok: true, created: true }; },
     async itemIds(game, keys) { return game === "dawn-baton" && keys.includes("baton") ? { baton: 7 } : {}; },
     async birth(a) {
@@ -561,6 +562,11 @@ test("a held lap makes one baton copy in the registry, for one of its stampers p
   const end = raw.prepare("SELECT hash FROM ledger WHERE lap = 1 AND band = 23").get().hash;
   const holder = people[parseInt(end.slice(0, 8), 16) % people.length];
   assert.deepEqual(env.REGISTRY.births, [{ itemId: 7, game: "dawn-baton", playerId: holder, key: "lap:1" }]);
+  // the baton is marked with its holder's band and sky (the test weather is rain)
+  const band = raw.prepare("SELECT band FROM ledger WHERE lap = 1 AND kind = 'stamp' AND player_id = ?").get(holder).band;
+  assert.deepEqual(env.REGISTRY.marks, [{ holder: { game: "dawn-baton", playerId: holder }, marks: [
+    { kind: "deed", value: "dawn_band_" + band, copies: [{ itemId: 7, copy: 1, key: "lap:1:band" }] },
+    { kind: "deed", value: "dawn_sky_rain", copies: [{ itemId: 7, copy: 1, key: "lap:1:sky" }] }] }]);
   const aId = raw.prepare("SELECT player_id FROM ledger WHERE lap = 1 AND band = 9").get().player_id;
   assert.deepEqual([la.baton, lb.baton], aId === holder ? [{ item: 7, copy: 1 }, null] : [null, { item: 7, copy: 1 }]);
   at(50);                                                                     // lap 2 had nobody: no copy
@@ -600,4 +606,18 @@ test("the lap's checkpoint detail: people, unheld (no bot count), the colours as
   assert.equal(d.colors[12], "#d86b5a");     // hsl(8, 62%, 60%), worked out with Python colorsys
   assert.equal(d.tune[12], "l");
   assert.equal(d.tune.length, 24);
+});
+
+test("the carried copy: today shows it, the picker lists and pins", async () => {
+  const env = makeEnv(), a = browser(env), pins = [];
+  Object.assign(env.REGISTRY, {
+    async pinned() { return { itemId: 4, copy: 2, item: { name: "a lamp" }, marks: [] }; },
+    async heldAcross() { return [{ itemId: 4, copy: 2, game: "4dungeon", pinned: false, item: { name: "a lamp" } }]; },
+    async pin(p) { pins.push(p); return { ok: true }; },
+  });
+  await a("/api/band", { offset: 3 });
+  assert.deepEqual((await a("/api/today")).data.carry, { name: "a lamp", copy: 2, blessed: 0 });
+  assert.deepEqual((await a("/api/copies")).data.copies, [{ itemId: 4, copy: 2, name: "a lamp", game: "4dungeon", pinned: false }]);
+  assert.equal((await a("/api/pin", { itemId: 4, copy: 2 })).status, 200);
+  assert.equal(pins.length, 1);
 });

@@ -72,7 +72,7 @@ async function load(which) {
   if (which === "catch") return catchScreen(fx || await api("today"));
   if (which === "payoff") return payoffScreen(fx || await api("lap" + (lapN ? "?n=" + lapN : "")));
   if (which === "planet") return planetScreen(fx || await api("planet"));
-  if (which === "account") return accountScreen(fx || await api("account"));
+  if (which === "account") { const a = fx || await api("account"); a.copies = a.player && !PV ? ((await api("copies")).copies || []) : []; return accountScreen(a); }
   if (which === "help") return helpScreen();
   if (which === "ledger") return ledgerScreen();
 }
@@ -163,6 +163,8 @@ function catchScreen(d) {
   if (w.open && d.sky) h += `<div style="margin-top:6px">Your sky (automatic): <b>${SKY[d.sky]}</b></div>`;
   h += sunLine(d.sun) ? `<div style="margin-top:6px">${sunLine(d.sun)}</div>` : "";
   if (d.streak) h += `<div style="margin-top:6px">${d.streak} ${d.streak === 1 ? "lap" : "laps"} in a row</div>`;
+  // (v0.27) the copy you carry (your account's pinned copy), gold if the Moon blessed it; it rides along if the baton comes to you
+  if (d.carry) h += `<div style="margin-top:6px">Carrying <b${d.carry.blessed ? ' style="color:var(--gold)"' : ""}>${esc(d.carry.name)} #${d.carry.copy}</b></div>`;
   h += `</div>`;
   if (w.open && d.stamped) h += `<div class="p" style="border-color:#6be08a"><p class="h" style="color:#6be08a">Passed</p>You've passed the baton this lap. See how it turned out tomorrow morning!</div>`;
   else if (w.open) {
@@ -494,6 +496,8 @@ function accountScreen(a) {
       <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
       <div class="r"><button id="nshuffle">Shuffle</button></div>
       <label class="m" style="display:block;margin-top:8px"><input type="checkbox" id="nsigns" ${a.signs !== false ? "checked" : ""}> Show my name on my stamps (only after the lap is over)</label></div>
+    ${a.player ? `<div class="p"><p class="h">Carry</p><div class="m" style="margin-bottom:6px">The copy you carry into every 88x31 game. If the baton comes to you, it rides along and gets a mark.</div>
+      ${a.copies.slice(0, 12).map((x, i) => `<div class="r" style="margin-bottom:4px"><span class="m">${esc(x.name)} #${x.copy} · ${esc(x.game)}</span>${x === (a.copies.find((y) => y.pinned) || a.copies[0]) ? '<span class="m">carrying</span>' : `<button data-pin="${i}">Pin</button>`}</div>`).join("") || '<div class="m">No copies yet.</div>'}</div>` : ""}
     ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div><div style="margin-top:8px"><button id="dlcode">Download as a text file</button></div></div>` : ""}
     <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p><div class="m" style="margin-bottom:6px">A code you write down or keep in a file. It works on any browser.</div>
       ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
@@ -525,6 +529,7 @@ function accountScreen(a) {
     a.download = "dawn-baton-save-code.txt"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const mk = $("#mkcode"); if (mk) mk.onclick = async () => { const r = await api("codes", { action: "new" }); if (r.error) return say(r.error); newCode = r.code; load("account"); };
+  el.querySelectorAll("[data-pin]").forEach((b) => b.onclick = async () => { const x = a.copies[+b.dataset.pin]; const r = await api("pin", { itemId: x.itemId, copy: x.copy }); if (r.error) say(r.error); else { load("account"); load("catch"); } });
   el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => { const r = await api(b.dataset.rm, { action: "remove", id: +b.dataset.id }); if (r.error) say(r.error); else load("account"); });
   $("#uc").onclick = async () => { const r = await api("load", { code: $("#code").value }); if (r.error) return say(r.error); done("Logged in."); };
   const out = $("#out"); if (out) out.onclick = async () => { const r = await api("logout", {}); if (r.error) return say(r.error); done("Logged out."); };

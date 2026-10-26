@@ -4,6 +4,16 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.27 — "Carry"
+**Mon Oct 26, 2026 · 12:30 AM HST**
+
+- **Each lap's baton is marked with its dawn:** the holder's band (dawn_band_N) and their sky (dawn_sky_clear and so on; an unknown sky gets no mark), so every copy of the baton holds a different sunrise. Removed: batons with no marks.
+- **You carry a copy:** Catch shows it. It's your account's pinned copy from any 88x31 game, or your newest copy, in gold if the Moon blessed it. If the baton comes to you, the copy you carried gets a "rode_with_baton" mark. Removed: nothing said what you hold elsewhere.
+- **Account has a Carry list:** every copy your account holds, each with Pin. Removed: no way to choose the copy you carry.
+- Needs dungeon-items with the pinned copy (its migration 007) live first.
+
+---
+
 ## v0.26 — "Lap Address"
 **Wed Oct 21, 2026 · 3:05 AM HST**
 

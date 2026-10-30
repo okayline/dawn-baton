@@ -5,28 +5,28 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 ---
 
 ## v0.32 — "Small Print"
-**Thu Oct 29, 2026 · 3:10 PM HST**
+**Thu Oct 29, 2026 · 2:53 PM HST**
 
 - The footer is a bit smaller and a few pixels higher. Removed: the larger footer text.
 
 ## v0.31 — "Snug"
-**Thu Oct 29, 2026 · 3:00 PM HST**
+**Thu Oct 29, 2026 · 2:49 PM HST**
 
 - The links and footer row sit right under the panel. Removed: about 16px of space above the row.
 
 ## v0.30 — "Footer Row"
-**Thu Oct 29, 2026 · 2:55 PM HST**
+**Thu Oct 29, 2026 · 2:42 PM HST**
 
 - **How to Play and Ledger sit on the same line as the footer**, on the left, with the footer on the right. Removed: the centered footer on its own line, and the "Played before? Tap the ≡…" line under the panel.
 
 ## v0.29 — "No Login Page"
-**Thu Oct 29, 2026 · 2:50 PM HST**
+**Thu Oct 29, 2026 · 2:32 PM HST**
 
 - **The Account tab is now "You"** and holds only your band and your name. Save codes, passkeys, logging in and out, and the copy you carry are all in the footer's ≡ window. Removed: the save codes, passkeys, log in and log out sections, the Carry list with its Pin buttons, and the "Saved on N devices" line.
 - The footer is centered on the page. Removed: nothing.
 
 ## v0.28 — "Footer"
-**Thu Oct 29, 2026 · 2:25 PM HST**
+**Thu Oct 29, 2026 · 2:18 PM HST**
 
 - **The shared footer** from dungeon-items ("© ~*~88x31~*~ cLuB, year · ≡ v0.28"), the same line every game shows. Its ≡ pops up the carry window. Removed: "Dawn Baton v…" at the start of the footer (How to Play and Ledger stay).
 - **The carry window** (`/api/carry`): the registry's page of every copy your account holds, with your save codes, passkeys and logging in and out, in Dawn Baton's colours. Same as scoundrel.exe's. Removed: nothing; Account still has everything it had.

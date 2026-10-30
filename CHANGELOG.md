@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.28 — "Footer"
+**Thu Oct 29, 2026 · 2:25 PM HST**
+
+- **The shared footer** from dungeon-items ("© ~*~88x31~*~ cLuB, year · ≡ v0.28"), the same line every game shows. Its ≡ pops up the carry window. Removed: "Dawn Baton v…" at the start of the footer (How to Play and Ledger stay).
+- **The carry window** (`/api/carry`): the registry's page of every copy your account holds, with your save codes, passkeys and logging in and out, in Dawn Baton's colours. Same as scoundrel.exe's. Removed: nothing; Account still has everything it had.
+
+---
+
 ## v0.27 — "Carry"
 **Mon Oct 26, 2026 · 12:30 AM HST**
 

@@ -384,6 +384,8 @@ test("today reports the version, and CHANGELOG.md's newest entry is that version
   assert.equal(d.version, VERSION);
   const log = readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
   assert.equal(/^## v(\S+)/m.exec(log)[1], VERSION);
+  const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.ok(page.includes("/footer.js") && page.includes(`data-version="v${VERSION}"`), "the shared footer shows the version");
 });
 
 // ---------- strand details ----------

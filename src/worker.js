@@ -48,6 +48,7 @@ export default {
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS ? env.ASSETS.fetch(req) : new Response("Not found", { status: 404 });
     try {
+      if (req.method === "GET" && url.pathname === "/api/carry") return await carryPage(req, env);   // a page, not JSON
       const route = ROUTES[`${req.method} ${url.pathname}`];
       if (!route) return json({ error: "No such thing." }, 404);
       const ctx = { env, req, url, db: env.DB, t: clock(env), launch: Date.parse(env.LAUNCH_START), setCookie: null };
@@ -444,6 +445,21 @@ async function enter(ctx, accountId) {
 
 const must = async (ctx, create = false) => { const p = await player(ctx, create); if (!p) throw new Oops("No player here.", 401); return p; };
 const body = async (ctx) => { try { return await ctx.req.json(); } catch { throw new Oops("That request didn't make sense."); } };
+
+// The carry window (the footer's ≡): the registry's own page of every copy your account holds in any game, with the
+// shared save codes and passkeys and logging in and out (the routes above), in Dawn Baton's frame (dungeon-items
+// carry-window.js). Its buttons pin through POST /api/pin. Same as scoundrel.exe's.
+//   GET  /api/carry[?embed=1]     the window, as a page
+async function carryPage(req, env) {
+  const ctx = { env, req, url: new URL(req.url), db: env.DB, t: clock(env), setCookie: null };
+  const me = await player(ctx);
+  if (!env.REGISTRY || !env.REGISTRY.carryWindow) throw new Oops("The registry is unavailable right now. Try again in a moment.", 503);
+  const id = me ? await accountFor(ctx, me) : null;
+  const ways = { player: !!me, ...(id ? ok(await ACC(env).info(id)) : { codes: [], passkeys: [] }) };
+  const html = await env.REGISTRY.carryWindow({ game: GAME, playerId: me ? me.id : 0, pinUrl: "/api/pin", back: "/", ways, embed: ctx.url.searchParams.get("embed") === "1",
+    frame: { title: "Dawn Baton · Carry", paper: "#12124a", ink: "#f2f2ff", edge: "#6c6cff", accent: "#ffe066", font: '"Trebuchet MS", Verdana, sans-serif' } });
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
 
 async function account(ctx, known = null) {
   const me = known || await player(ctx);

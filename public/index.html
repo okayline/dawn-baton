@@ -34,7 +34,9 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
 <div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section><section id="ledger" hidden></section>
-<footer class="m" style="text-align:center;padding:8px 0 56px"><span id="ver">Dawn Baton</span> &middot; <a href="#" id="howto" style="color:inherit">How to Play</a> &middot; <a href="#" id="seeledger" style="color:inherit">Ledger</a></footer>
+<footer class="m" style="text-align:center;padding:8px 0 56px"><a href="#" id="howto" style="color:inherit">How to Play</a> &middot; <a href="#" id="seeledger" style="color:inherit">Ledger</a>
+<!-- the footer every game shows (dungeon-items src/footer.js): "© ~*~88x31~*~ cLuB, year · ≡ version"; ≡ pops up the save codes / passkeys / carry window (/api/carry) -->
+<script src="https://dungeon-items.ddddungeon.workers.dev/footer.js" data-version="v0.28"></script></footer>
 </main>
 <div id="adm" hidden></div>
 <script>
@@ -152,7 +154,6 @@ const words = (st) => ({
 });
 
 function catchScreen(d) {
-  if (d.version) $("#ver").textContent = "Dawn Baton v" + d.version;
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
   if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }

@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## Footer fixes
+**Thu Oct 29, 2026 · 9:46 PM HST** (no new version: the game itself is unchanged)
+
+- The shared footer (from dungeon-items) waits until the page has loaded before it shows, so it no longer appears alone in the middle of the screen first, and its text can be selected. Removed: nothing in this game (the change is in dungeon-items `footer.js`).
+- The comment above the footer in `index.html` shows the footer's current text ("🄯 ~*~88x31~*~ · § ≡ version"). Removed: the old text in that comment ("© ~*~88x31~*~ cLuB, year · ≡ version").
+
 ## v0.32 — "Small Print"
 **Thu Oct 29, 2026 · 2:53 PM HST**
 

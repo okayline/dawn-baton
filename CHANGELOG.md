@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.32 — "Small Print"
+**Thu Oct 29, 2026 · 3:10 PM HST**
+
+- The footer is a bit smaller and a few pixels higher. Removed: the larger footer text.
+
 ## v0.31 — "Snug"
 **Thu Oct 29, 2026 · 3:00 PM HST**
 

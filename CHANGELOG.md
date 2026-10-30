@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.29 — "No Login Page"
+**Thu Oct 29, 2026 · 2:50 PM HST**
+
+- **The Account tab is now "You"** and holds only your band and your name. Save codes, passkeys, logging in and out, and the copy you carry are all in the footer's ≡ window. Removed: the save codes, passkeys, log in and log out sections, the Carry list with its Pin buttons, and the "Saved on N devices" line.
+- The footer is centered on the page. Removed: nothing.
+
 ## v0.28 — "Footer"
 **Thu Oct 29, 2026 · 2:25 PM HST**
 

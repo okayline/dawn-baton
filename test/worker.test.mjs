@@ -619,7 +619,6 @@ test("the carried copy: today shows it, the picker lists and pins", async () => 
   });
   await a("/api/band", { offset: 3 });
   assert.deepEqual((await a("/api/today")).data.carry, { name: "a lamp", copy: 2, blessed: 0 });
-  assert.deepEqual((await a("/api/copies")).data.copies, [{ itemId: 4, copy: 2, name: "a lamp", game: "4dungeon", pinned: false }]);
   assert.equal((await a("/api/pin", { itemId: 4, copy: 2 })).status, 200);
   assert.equal(pins.length, 1);
 });

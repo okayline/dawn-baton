@@ -34,7 +34,7 @@ const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(d
 const ROUTES = {
   "GET /api/today": today, "POST /api/band": setBand, "POST /api/stamp": stamp,
   "GET /api/planet": planet, "GET /api/lap": lapView, "GET /api/ledger": ledger,
-  "GET /api/copies": copies, "POST /api/pin": pinCopy,
+  "POST /api/pin": pinCopy,
   "GET /api/account": account, "POST /api/codes": codes, "POST /api/load": loadCode,
   "POST /api/passkey": passkey, "POST /api/name": setName, "POST /api/logout": logout,
 };
@@ -599,15 +599,8 @@ async function markCarry(env, playerId, value, key) {
   } catch (e) { console.error(e); }
 }
 
-// The picker (account panel): every copy your account holds in any game, newest first, and pinning one of them to carry.
-//   GET  /api/copies              { copies: [{ itemId, copy, name, game, pinned }] } (up to 50)
+// Pinning a copy to carry (the buttons are in the footer's carry window, GET /api/carry).
 //   POST /api/pin {itemId, copy}  pin it: every game carries it from your next run
-async function copies(ctx) {
-  const { env } = ctx, me = await player(ctx);
-  if (!me || !env.REGISTRY || !env.REGISTRY.heldAcross) return { copies: [] };
-  const list = await env.REGISTRY.heldAcross(GAME, me.id, 50);
-  return { copies: list.map((c) => ({ itemId: c.itemId, copy: c.copy, name: c.item.name, game: c.game, pinned: c.pinned })) };
-}
 async function pinCopy(ctx) {
   const { env } = ctx, me = await player(ctx), b = await ctx.req.json().catch(() => ({}));
   if (!me) throw new Oops("Make a save code or passkey first.", 401);

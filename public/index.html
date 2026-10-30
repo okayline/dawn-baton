@@ -31,12 +31,12 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 <div id="pv" hidden>PREVIEW MODE: made-up screens. Nothing is sent or saved. Press X to close.</div>
 <div class="bar"></div>
 <div class="r" style="justify-content:space-between"><b style="font-size:20px">Dawn Baton</b><span class="m" id="lapno"></span></div>
-<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">Account</button></nav>
+<nav><button class="tab on" data-t="catch">Catch</button><button class="tab" data-t="payoff">Yesterday</button><button class="tab" data-t="planet">Planet</button><button class="tab" data-t="account">You</button></nav>
 <div class="p" id="gw" hidden><canvas id="globe" role="img" aria-label="A globe cut into the 24 solar bands, shaded by where the sun is" style="display:block;margin:0 auto;width:100%;max-width:360px;aspect-ratio:1"></canvas><div id="strip" hidden></div></div>
 <section id="catch"></section><section id="payoff" hidden></section><section id="planet" hidden></section><section id="account" hidden></section><section id="help" hidden></section><section id="ledger" hidden></section>
 <footer class="m" style="text-align:center;padding:8px 0 56px"><a href="#" id="howto" style="color:inherit">How to Play</a> &middot; <a href="#" id="seeledger" style="color:inherit">Ledger</a>
 <!-- the footer every game shows (dungeon-items src/footer.js): "© ~*~88x31~*~ cLuB, year · ≡ version"; ≡ pops up the save codes / passkeys / carry window (/api/carry) -->
-<script src="https://dungeon-items.ddddungeon.workers.dev/footer.js" data-version="v0.28" data-align="center"></script></footer>
+<script src="https://dungeon-items.ddddungeon.workers.dev/footer.js" data-version="v0.29" data-align="center"></script></footer>
 </main>
 <div id="adm" hidden></div>
 <script>
@@ -48,7 +48,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const NOTE_WORD = { resolve: "Settle", tension: "Lean" };   // what players see; the stored values stay resolve/tension
 let palette = [], lists = { phrase: [], feeling: [], gesture: [], signoff: [] };
-let pick = {}, isAdmin = false, PV = null, newCode = null, NAMES = { adj: [], noun: [] }, lapN = null, curTab = "catch";
+let pick = {}, isAdmin = false, PV = null, NAMES = { adj: [], noun: [] }, lapN = null, curTab = "catch";
 
 // In preview mode nothing is sent: writes are refused on the spot, and screens read made-up data.
 const api = async (p, body) => {
@@ -74,7 +74,7 @@ async function load(which) {
   if (which === "catch") return catchScreen(fx || await api("today"));
   if (which === "payoff") return payoffScreen(fx || await api("lap" + (lapN ? "?n=" + lapN : "")));
   if (which === "planet") return planetScreen(fx || await api("planet"));
-  if (which === "account") { const a = fx || await api("account"); a.copies = a.player && !PV ? ((await api("copies")).copies || []) : []; return accountScreen(a); }
+  if (which === "account") { const a = fx || await api("account"); return accountScreen(a); }
   if (which === "help") return helpScreen();
   if (which === "ledger") return ledgerScreen();
 }
@@ -83,7 +83,7 @@ async function load(which) {
 function helpScreen() {
   const cards = [
     ["What is this?", "A game about connecting with people through the Sun's real position. Every morning, a baton follows the sunrise around the planet. When it gets to you, you add a little something and pass it on to the next person."],
-    ["Your band", "Earth is split into 24 bands, one for each hour of sunrise. You pick yours in Account. The baton gets to you when the sun rises in your band."],
+    ["Your band", "Earth is split into 24 bands, one for each hour of sunrise. You pick yours on the You tab. The baton gets to you when the sun rises in your band."],
     ["Catch it", "Your window opens at sunrise and stays open 2 hours. On the Catch page, see what the person before you sent, then add your own: a color, Settle or Lean, a few words. Everything is optional. Then pass it on."],
     ["Yesterday", "Once the baton has gone all the way around, you can see the whole lap: everyone's colors, the tune, and the words. Your own stamp is marked."],
     ["The globe", "Gold is the baton. White is you. \u2600\uFE0F is where the sun is right now. Tap a dot under the globe to jump to that band."],
@@ -156,7 +156,7 @@ const words = (st) => ({
 function catchScreen(d) {
   palette = d.palette; lists = d.lists || lists; $("#lapno").textContent = d.lap ? `Lap ${d.lap}` : "Not started";
   const el = $("#catch");
-  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Use the Account tab to log in with a save code or passkey.</div>`; return wireBand(); }
+  if (!d.band) { el.innerHTML = `<div class="p"><p class="h">Tune your band</p>${bandPicker(null, d.suggest)}</div>${sunLine(d.sun) ? `<div class="p"><p class="h">Today's sun</p>${sunLine(d.sun)}</div>` : ""}<div class="m">Played before? Tap the ≡ at the bottom to log in with a save code or passkey.</div>`; return wireBand(); }
   const w = d.window; let h = `<div class="p"><p class="h">Your dawn</p>`;
   if (!w.open) h += `<div style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums" data-cd="opens" data-t="${w.opensAt}">${cdText("opens", w.opensAt)}</div>`;
   else h += d.stamped ? `<div style="font-size:18px;font-weight:700" data-cd="next" data-t="${w.opensAt + 86400000}">${cdText("next", w.opensAt + 86400000)}</div>` : `<div style="font-size:18px;font-weight:700" data-cd="open" data-t="${w.closesAt}">${cdText("open", w.closesAt)}</div>`;
@@ -433,7 +433,7 @@ function pickBand(b) {                                              // Yesterday
   $("#globe").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 let lapForGlobe = null, strandRender = null;
-async function refreshGlobe() {                                      // one globe above every screen except Account
+async function refreshGlobe() {                                      // one globe above every screen except You
   const wrap = $("#gw"); if (curTab === "account" || curTab === "help") { wrap.hidden = true; return; }
   if (curTab === "payoff" && lapForGlobe) { if (G && G.kind === "lap") return; G = lapState(lapForGlobe); wrap.hidden = false; drawGlobe($("#globe"), G); return; }
   const p = PV ? fixture("planet", PV.screen === "planet" ? PV.scenario : DEFAULT.planet) : await api("planet");
@@ -485,34 +485,14 @@ function planetScreen(p) {
 }
 
 // ---------- account: save codes and passkeys ----------
-const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const unb64 = (t) => { t = t.replace(/-/g, "+").replace(/_/g, "/"); return Uint8Array.from(atob(t + "===".slice((t.length + 3) % 4)), (c) => c.charCodeAt(0)); };
-const pkOk = () => !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
-const day = (s) => new Date(s * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
 function accountScreen(a) {
-  const el = $("#account"), has = a.codes.length || a.passkeys.length;
-  el.innerHTML = `${a.band ? `<div class="p"><p class="h">Your band</p><div>solar UTC${a.band.offset >= 0 ? "+" : "-"}${Math.abs(a.band.offset)}</div>${a.band.canChangeAt ? `<div class="m" style="margin-top:4px">You can change it again on ${new Date(a.band.canChangeAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}.</div>` : `<div style="margin-top:8px"><button id="showband">Change band&hellip;</button></div><div id="bandwrap" hidden style="margin-top:8px">${bandPicker(a.band.offset)}</div>`}</div>` : ""}<div class="p"><p class="h">Your player</p>
-    <div class="m">${a.player ? `Saved on ${a.devices} device${a.devices > 1 ? "s" : ""}.` : "No player yet. Pick a band on the Catch tab, or log in below."} Either of these brings your player, band and stamps to another browser or device.</div></div>
-    <div class="p"><p class="h">Your name</p>
+  const el = $("#account");
+  el.innerHTML = `${a.band ? `<div class="p"><p class="h">Your band</p><div>solar UTC${a.band.offset >= 0 ? "+" : "-"}${Math.abs(a.band.offset)}</div>${a.band.canChangeAt ? `<div class="m" style="margin-top:4px">You can change it again on ${new Date(a.band.canChangeAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}.</div>` : `<div style="margin-top:8px"><button id="showband">Change band&hellip;</button></div><div id="bandwrap" hidden style="margin-top:8px">${bandPicker(a.band.offset)}</div>`}</div>` : ""}    <div class="p"><p class="h">Your name</p>
       <div style="font-size:16px;margin-bottom:6px">${a.name ? `<b>${esc(a.name.text)}</b>` : '<span class="m">No name yet. You stamp as a stranger.</span>'}</div>
       <div class="r"><button id="nshuffle">Shuffle</button></div>
       <label class="m" style="display:block;margin-top:8px"><input type="checkbox" id="nsigns" ${a.signs !== false ? "checked" : ""}> Show my name on my stamps (only after the lap is over)</label></div>
-    ${a.player ? `<div class="p"><p class="h">Carry</p><div class="m" style="margin-bottom:6px">The copy you carry into every 88x31 game. If the baton comes to you, it rides along and gets a mark.</div>
-      ${a.copies.slice(0, 12).map((x, i) => `<div class="r" style="margin-bottom:4px"><span class="m">${esc(x.name)} #${x.copy} · ${esc(x.game)}</span>${x === (a.copies.find((y) => y.pinned) || a.copies[0]) ? '<span class="m">carrying</span>' : `<button data-pin="${i}">Pin</button>`}</div>`).join("") || '<div class="m">No copies yet.</div>'}</div>` : ""}
-    ${newCode ? `<div class="p" style="border-color:var(--gold)"><p class="h">Your new save code (shown once)</p><div style="font:700 17px monospace;letter-spacing:.04em;word-break:break-all">${newCode}</div><div class="m" style="margin-top:4px">Write it down or save it somewhere safe. We only keep a fingerprint of it.</div><div style="margin-top:8px"><button id="dlcode">Download as a text file</button></div></div>` : ""}
-    <div class="p"><p class="h">Save codes (${a.codes.length}/5)</p><div class="m" style="margin-bottom:6px">A code you write down or keep in a file. It works on any browser.</div>
-      ${a.codes.map((c) => `<div class="r" style="margin-bottom:4px"><span class="m">made ${day(c.created_at)}${c.last_used_at ? " · used " + day(c.last_used_at) : ""}</span><button data-rm="codes" data-id="${c.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
-      <div style="margin-top:6px"><button id="mkcode">Make a save code</button></div></div>
-    <div class="p"><p class="h">Passkeys (${a.passkeys.length})</p><div class="m" style="margin-bottom:6px">Log in with your fingerprint, face or device PIN. Nothing to write down.</div>
-      ${a.passkeys.map((k) => `<div class="r" style="margin-bottom:4px"><span class="m">${esc(k.label || "passkey")} · made ${day(k.created_at)}</span><button data-rm="passkey" data-id="${k.id}">Forget</button></div>`).join("") || '<div class="m">None yet.</div>'}
-      <div style="margin-top:6px">${pkOk() ? '<button id="mkpk">Add a passkey</button>' : '<span class="m">This browser can\'t do passkeys. Use a save code instead.</span>'}</div></div>
-    <div class="p"><p class="h">Log in on this device</p><div class="m" style="margin-bottom:4px">With a save code:</div>
-      <div class="r"><input id="code" placeholder="K7QM-2XPA-9RTD-HV4C-8NBE" style="font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:4px 6px;flex:1;min-width:180px"><button id="uc">Use code</button></div>
-      ${pkOk() ? '<div class="m" style="margin:8px 0 4px">Or with a passkey:</div><div><button id="up">Log in with a passkey</button></div>' : ""}</div>
-    ${has ? '<button id="out" style="align-self:flex-start">Log out of this browser</button>' : ""}
     <div class="m" id="amsg"></div>`;
   const say = (t) => { $("#amsg").textContent = t; };
-  const done = (msg) => { newCode = null; load("account"); load("catch"); if (msg) setTimeout(() => say(msg), 200); };
   const sel = (id) => $("#" + id);
   wireBand(); if ($("#showband")) $("#showband").onclick = () => { $("#showband").hidden = true; $("#bandwrap").hidden = false; };
   sel("nshuffle").onclick = async () => {                             // a random free pair, saved right away
@@ -523,41 +503,6 @@ function accountScreen(a) {
     load("account");
   };
   sel("nsigns").onchange = async () => { const r = await api("name", { signs: sel("nsigns").checked }); if (r.error) say(r.error); };
-  const dl = $("#dlcode"); if (dl) dl.onclick = () => {
-    const text = `Dawn Baton save code\n\n${newCode}\n\nGo to ${location.origin}, open the Account tab, and paste this code under "Log in on this device" to play as your player on any browser.\nKeep this file private: anyone with the code can log in as you.\n`;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    a.download = "dawn-baton-save-code.txt"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
-  const mk = $("#mkcode"); if (mk) mk.onclick = async () => { const r = await api("codes", { action: "new" }); if (r.error) return say(r.error); newCode = r.code; load("account"); };
-  el.querySelectorAll("[data-pin]").forEach((b) => b.onclick = async () => { const x = a.copies[+b.dataset.pin]; const r = await api("pin", { itemId: x.itemId, copy: x.copy }); if (r.error) say(r.error); else { load("account"); load("catch"); } });
-  el.querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => { const r = await api(b.dataset.rm, { action: "remove", id: +b.dataset.id }); if (r.error) say(r.error); else load("account"); });
-  $("#uc").onclick = async () => { const r = await api("load", { code: $("#code").value }); if (r.error) return say(r.error); done("Logged in."); };
-  const out = $("#out"); if (out) out.onclick = async () => { const r = await api("logout", {}); if (r.error) return say(r.error); done("Logged out."); };
-  const mp = $("#mkpk"); if (mp) mp.onclick = async () => {
-    if (PV) return say("Preview mode: nothing was sent.");
-    try {
-      say("Waiting for your fingerprint, face or PIN...");
-      const o = await api("passkey", { action: "register_options" }); if (o.error) return say(o.error);
-      const cred = await navigator.credentials.create({ publicKey: { ...o, challenge: unb64(o.challenge), user: { ...o.user, id: unb64(o.user.id) }, excludeCredentials: o.excludeCredentials.map((c) => ({ ...c, id: unb64(c.id) })) } });
-      const ua = navigator.userAgent;
-      const r = await api("passkey", { action: "register", label: /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iPhone" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows PC" : "This device",
-        credential: { id: cred.id, response: { clientDataJSON: b64(cred.response.clientDataJSON), attestationObject: b64(cred.response.attestationObject) } } });
-      if (r.error) return say(r.error);
-      load("account"); setTimeout(() => say("Passkey added."), 200);
-    } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
-  };
-  const up = $("#up"); if (up) up.onclick = async () => {
-    if (PV) return say("Preview mode: nothing was sent.");
-    try {
-      say("Waiting for your passkey...");
-      const o = await api("passkey", { action: "login_options" }); if (o.error) return say(o.error);
-      const cred = await navigator.credentials.get({ publicKey: { ...o, challenge: unb64(o.challenge) } });
-      const r = await api("passkey", { action: "login", credential: { id: cred.id, response: { clientDataJSON: b64(cred.response.clientDataJSON), authenticatorData: b64(cred.response.authenticatorData), signature: b64(cred.response.signature) } } });
-      if (r.error) return say(r.error);
-      done("Logged in.");
-    } catch (e) { say(e && e.name === "NotAllowedError" ? "Passkey cancelled (or it timed out)." : (e && e.message) || "The passkey didn't work."); }
-  };
 }
 
 // ---------- admin: preview every screen with made-up data (X key) ----------
@@ -566,7 +511,7 @@ const SCENARIOS = {
   catch: { nobands: "No band yet", waiting: "Waiting for dawn", open: "Open, with a line before", first: "Open, you're first", stamped: "Already passed", equinox: "Open, equinox day", polar: "Open, polar night" },
   payoff: { full: "A full lap", sparse: "Mostly unheld", missed: "You missed it", none: "No finished lap yet" },
   planet: { mid: "Mid-lap", start: "Lap just started", end: "Last bands", none: "Not started" },
-  account: { fresh: "New player", saved: "Codes and a passkey", justmade: "Just made a code" },
+  account: { fresh: "New player", saved: "Has a name" },
 };
 const DEFAULT = { catch: "open", payoff: "full", planet: "mid", account: "saved" };
 let seed = 7; const rnd = (n) => (seed = (seed * 16807) % 2147483647) % n;
@@ -610,18 +555,16 @@ function fixture(which, scn) {
     return { lap: 118, bands };
   }
   if (which === "account") {
-    const t = Math.floor(Date.now() / 1000);
-    if (scn === "fresh") { newCode = null; return { player: false, admin: true, codes: [], passkeys: [], devices: 0, name: null, names: NAMES, signs: true }; }
-    if (scn === "justmade") newCode = "K7QM-2XPA-9RTD-HV4C-8NBE"; else newCode = null;
+    if (scn === "fresh") return { player: false, admin: true, name: null, names: NAMES, signs: true };
     const nm = { a: "adj:0", b: "noun:0", text: `${NAMES.adj[0] || "Quiet"} ${NAMES.noun[0] || "Heron"}` };
-    return { player: true, admin: true, name: nm, names: NAMES, signs: true, codes: [{ id: 1, created_at: t - 86400 * 3, last_used_at: t - 3600 }], passkeys: [{ id: 1, label: "Windows PC", created_at: t - 86400 * 3, last_used_at: null }], devices: 2 };
+    return { player: true, admin: true, name: nm, names: NAMES, signs: true };
   }
 }
 
 function adminPanel() {
   const bar = $("#adm");
   if (!isAdmin) return;
-  if (!bar.hidden) { bar.hidden = true; PV = null; newCode = null; $("#pv").hidden = true; return show(document.querySelector(".tab.on").dataset.t); }
+  if (!bar.hidden) { bar.hidden = true; PV = null; $("#pv").hidden = true; return show(document.querySelector(".tab.on").dataset.t); }
   const cur = document.querySelector(".tab.on").dataset.t;
   const opts = Object.entries(SCENARIOS).map(([k, m]) => `<optgroup label="${cap(k)}">${Object.entries(m).map(([id, name]) => `<option value="${k}:${id}">${name}</option>`).join("")}</optgroup>`).join("");
   bar.innerHTML = `<b style="color:var(--gold)">ADMIN</b><select id="pvs">${opts}</select><span class="m">Made-up screens, nothing sent. X closes.</span>`;

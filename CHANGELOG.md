@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.31 — "Snug"
+**Thu Oct 29, 2026 · 3:00 PM HST**
+
+- The links and footer row sit right under the panel. Removed: about 16px of space above the row.
+
 ## v0.30 — "Footer Row"
 **Thu Oct 29, 2026 · 2:55 PM HST**
 

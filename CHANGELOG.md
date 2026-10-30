@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.30 — "Footer Row"
+**Thu Oct 29, 2026 · 2:55 PM HST**
+
+- **How to Play and Ledger sit on the same line as the footer**, on the left, with the footer on the right. Removed: the centered footer on its own line, and the "Played before? Tap the ≡…" line under the panel.
+
 ## v0.29 — "No Login Page"
 **Thu Oct 29, 2026 · 2:50 PM HST**
 

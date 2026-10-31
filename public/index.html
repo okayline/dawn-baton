@@ -300,7 +300,7 @@ function payoffScreen(l) {
     <div class="r" style="margin-top:8px"><button id="tune">Play the tune</button><span class="m" style="display:flex;gap:10px;align-items:center"><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "resolve" })} settle</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({ note: "tension" })} lean</span><span style="display:flex;gap:3px;align-items:center">${noteIcon({})} silent</span></span></div>
     </div>
     ${!me && l.next ? `<div class="p"><div>You didn't catch the baton this lap.</div><div class="m" style="margin-top:2px" data-cd="next" data-t="${l.next.opensAt}">${cdText("next", l.next.opensAt)}</div></div>` : ""}
-    ${l.baton ? `<div class="p" style="border-color:var(--gold)"><div>You carried this lap's baton home.</div><div class="m" style="margin-top:2px"><a href="https://88x31.app/registry?item=${l.baton.item}&copy=${l.baton.copy}" target="_blank" rel="noopener" style="color:inherit">The Dawn Baton #${l.baton.copy}</a> is yours, in the shared registry.</div></div>` : ""}
+    ${l.baton ? `<div class="p" style="border-color:var(--gold)"><div>You carried this lap's baton home.</div><div class="m" style="margin-top:2px"><a href="https://club.88x31.app/registry?item=${l.baton.item}&copy=${l.baton.copy}" target="_blank" rel="noopener" style="color:inherit">The Dawn Baton #${l.baton.copy}</a> is yours, in the shared registry.</div></div>` : ""}
     <div id="top">${myBox}</div>
     <div class="p"><p class="h">The strand</p><div id="sl">${shown.slice(0, 6).map((x) => strand(x, x.mine)).join("") || '<div class="m">No phrases this lap.</div>'}</div>
       ${shown.length > 6 ? `<button id="more" style="margin-top:6px">Show all ${shown.length}</button>` : ""}</div>

@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.35 — "Notes Tidy"
+**Sat Oct 31, 2026 · 1:35 PM HST**
+
+- **Behind the scenes only:** nothing in the game changes. The repo's working notes (`CLAUDE.md`) now hold only notes for this game. Removed: the shared working-rules block that was copied into that file.
+
 ## v0.34 — "Tab Icon"
 **Sat Oct 31, 2026 · 11:30 AM HST**
 

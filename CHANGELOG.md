@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.34 — "Tab Icon"
+**Sat Oct 31, 2026 · 11:30 AM HST**
+
+- **A tab icon:** a pastel pixel-art favicon (88 over 31 on a big X, in this game's colours), so the browser tab and home-screen bookmark show the game instead of a blank default. Removed: nothing (the page had no icon before).
+
 ## v0.33 — "Footer Spot"
 **Sat Oct 31, 2026 · 5:30 AM HST**
 

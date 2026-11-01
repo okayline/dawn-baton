@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST). The detailed dev changelog is kept se
 
 ---
 
+## v0.36 — "Calm Icon"
+**Sat Oct 31, 2026 · 10:35 PM HST**
+
+- **A calmer tab icon:** just "88 x 31" in this game's accent colour, wider, inside a bold ASCII `+--+` border, on this page's own background colour. Removed: the busy pastel background with the big X, and the numbers' dark outline, white tops and shadow bar.
+
 ## v0.35 — "Notes Tidy"
 **Sat Oct 31, 2026 · 1:35 PM HST**
 
